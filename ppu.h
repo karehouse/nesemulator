@@ -10,12 +10,14 @@ struct ppu
     ppu() {
         cycle = 0;
         scanline = -1;
+        //STATUS |= 0x80;
         frame_count = 0;
         vblanktime = 20 * 341 * 5; // NTSC
 //        bg_palette_addy = 0x3F01;
  //       sprite_palette_addy = 0x3F11;
   //      resolution = 260*240;
         addr_write_count = 0;
+        writeCtrl(0x00);
 
 
 

@@ -116,8 +116,6 @@ void rom::setupRam()
         } else
         {
             //chrRAM ......
-            printf("chrram for mmc1 not implemented yet!!");
-            exit(1);
         }
 
     }

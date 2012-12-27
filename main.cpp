@@ -8,6 +8,7 @@
 #include "mmc1.h"
 //#define DEBUG_NESTEST
 //#define DEBUG_INSTR_TEST
+//#define GRAPHICS_OFF
 #define WINDOW_SIZE_X 256
 #define WINDOW_SIZE_Y 240
 #define TIMER_FUNC_FREQ 10
@@ -250,7 +251,9 @@ int relativeAddress(uint8_t value)
     if ( value & 0x80)
     { 
         //it is negative!
-        return -(0x100 - (int)value);
+        int sign =  -(0x100 - (int)value);
+        //printf("value: %x , signed : %d \n", value, sign);
+        return sign;
     }
     else
     {
@@ -365,33 +368,17 @@ void BPL()
 {
     CPU.pc++;
     uint16_t oldcpu = CPU.pc;
+    int offset;
     if(! CPU.getFlag('N'))
     {
-        int offset = relativeAddress(RAM->read(CPU.pc-1));
+    offset = relativeAddress(RAM->read(CPU.pc-1));
         CPU.pc += (offset);
         Bcycles_helper(oldcpu);
     }
 #ifdef DEBUG_NESTEST
-    printf("  BPL $%X  ", CPU.pc);
+    printf(" offset: %d , %X  BPL $%X  ", offset, RAM->read(CPU.pc-1), CPU.pc);
 #endif
     //CPU.clearFlags();
-}
-void PHP();
-void SEI();
-void BRK()
-{
-    CPU.pc ++;
-    push(CPU.pc>>8);
-    push(CPU.pc&0xff);
-    //CPU.clearFlags();
-    PHP();
-    SEI();
-    
-    CPU.setFlag('I', false);
-    
-    uint8_t high = RAM->read(0xffff);
-    uint8_t low = RAM->read(0xfffe);
-    CPU.pc = ((uint16_t)high << 8) + (uint16_t)low;
 }
 
 
@@ -593,6 +580,7 @@ void LDA(uint16_t memloc )
    CPU.A = RAM->read(memloc);
 #ifdef DEBUG_NESTEST
     printf(" LDA %04X ", memloc);
+    printf("A = %X", CPU.A);
 #endif
    checkNegative(CPU.A);
    checkZero(CPU.A);
@@ -867,7 +855,7 @@ void TYA()
 
 void nmi()
 {
-    uint8_t high = CPU.pc >> 8;
+    uint8_t high = (CPU.pc >> 8) & 0xFF;
     uint8_t low = CPU.pc & 0xFF;
 
     push(high);
@@ -877,10 +865,28 @@ void nmi()
     high  = RAM->read(0xFFFB);
     low = RAM->read(0xFFFA);
 
-    CPU.pc = (uint16_t)high<<8 + low;
+    CPU.pc = ((uint16_t)high<<8) + low;
     CPU.request_nmi = false;
+    printf("NMI: jmp to %x\n", CPU.pc );
+    printf("high = %X , low = %X\n", high, low);
 }
 
+void PHP();
+void SEI();
+void BRK()
+{
+    CPU.pc ++;
+    push(CPU.pc>>8);
+    push(CPU.pc&0xff);
+    //CPU.clearFlags();
+    PHP();
+    SEI();
+    
+    
+    uint8_t high = RAM->read(0xffff);
+    uint8_t low = RAM->read(0xfffe);
+    CPU.pc = ((uint16_t)high << 8) + (uint16_t)low;
+}
 void irq()
 {
     uint8_t high = CPU.pc >> 8;
@@ -898,28 +904,30 @@ void irq()
 
 int step( uint8_t opcode ) 
 {
+    //printf(" N == %d\n\n", CPU.getFlag('N'));
+    cycles = 0;
     if (DMA_WAIT >=0 ) {
         DMA_WAIT --;
+        cycles = 1;
         return 0;
     }
 
     if ( CPU.request_nmi )
     {
         nmi();
+        return 0 ;
     }
-
     else if ( CPU.irq_enable())
     {
         if(CPU.request_irq)
         {
             irq();
+            return 0;
         }
     }
 
-
     CPU.pc++;
-    cycles = 0;
-    //sleep cyclessss
+
     switch (opcode)
     {
         //ADC - add to accululator with carry
@@ -1850,7 +1858,9 @@ int main(int argc, char * argv[])
             glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
 
         glEnable(GL_TEXTURE_2D);
+#ifdef GRAPHICS_OFF
        glutMainLoop();
+#endif
         pthread_join(cpu_thread, NULL);
 
     }

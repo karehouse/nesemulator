@@ -151,12 +151,17 @@ uint8_t ppu::readStatus ()
 {
     uint8_t old_STATUS = STATUS;
 
+    write_latch = true;
     setVblank(false);
 
     
-    ADDR = 0x0;
+    //ADDR = 0x0;
 
-    
+   
+    if( cycle ==1 && scanline ==240)
+    {
+        return STATUS;
+    }
     return old_STATUS;
     
 }
@@ -353,12 +358,15 @@ void ppu::step()
     
     else if (scanline == 240)
     {
+        if (cycle ==1)
+        {
         //vblank!
         setVblank(true);
         if(ppu::generate_nmi)
         {
             
             CPU.request_nmi = true;
+        }
         }
     }
     
@@ -376,9 +384,8 @@ void ppu::step()
     
     if ( cycle == 341)
     {
-        cycle = 1;
+        cycle = 0;
         scanline++;
-        return;
     }
 
     cycle++;

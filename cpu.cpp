@@ -68,6 +68,6 @@ void cpu::setFlag(char Flag, bool value)
 }
 void cpu::clearFlags()
 {
-    cpu::P = 0x00;
+    //cpu::P = 0x00;
 }
 
