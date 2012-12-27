@@ -867,8 +867,6 @@ void nmi()
 
     CPU.pc = ((uint16_t)high<<8) + low;
     CPU.request_nmi = false;
-    printf("NMI: jmp to %x\n", CPU.pc );
-    printf("high = %X , low = %X\n", high, low);
 }
 
 void PHP();
@@ -1858,7 +1856,7 @@ int main(int argc, char * argv[])
             glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
 
         glEnable(GL_TEXTURE_2D);
-#ifdef GRAPHICS_OFF
+#ifndef GRAPHICS_OFF
        glutMainLoop();
 #endif
         pthread_join(cpu_thread, NULL);

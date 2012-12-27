@@ -23,7 +23,7 @@ bool ram::preRamStore(uint8_t value, uint16_t memloc)
             PPU->writeOAMAddress(value);
             return true;
         case 0x2004:
-            ppu->writeOAMData(value);
+            PPU->writeOAMData(value);
             return true;
         case 0x2006:
             PPU->writeAddr(value);

@@ -165,6 +165,8 @@ struct ppu
 
 private:
     void setVblank(bool);
+    void setSpriteOverflow(bool status);
+    void setSprite0Hit(bool status);
 
 };
 

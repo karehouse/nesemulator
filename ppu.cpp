@@ -21,6 +21,33 @@ void ppu::setVblank(bool value)
     }
 }
 
+
+void ppu::setSprite0Hit(bool status)
+{
+
+    if( status)
+    {
+        STATUS |= 0x40;
+    } else
+    {
+        STATUS &= 0xBF;
+    }
+
+}
+void ppu::setSpriteOverflow(bool status)
+{
+    if(status)
+    {
+        STATUS |= 0x20;
+    }
+    else
+    {
+        STATUS &= 0xDF;
+    }
+}
+
+
+
 void ppu::writeData(uint8_t word)
 {
     vram[ADDR] = word;
@@ -181,7 +208,7 @@ void ppu::writeOAMData( uint8_t word)
 
 }
 
-uint8_t readOAMData()
+uint8_t ppu::readOAMData()
 {
     return sprite_ram[sprite_ram_addy];
 }
@@ -320,6 +347,7 @@ void updateTiles()
 {
 }
 
+
 void ppu::step()
 { 
    //262 scanlines per frame
@@ -328,6 +356,8 @@ void ppu::step()
     {
         if ( cycle == 1)
         {
+            setSprite0Hit(false);
+            setSpriteOverflow(false);
         }
         else if (cycle == 304)
         {
@@ -348,7 +378,8 @@ void ppu::step()
 
                 if (show_sprites) 
                 {
-                    renderSprites();
+                   // renderSprites();
+                   setSprite0Hit(true);
                 }
         }
         else if( cycle == 319)
