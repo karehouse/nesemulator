@@ -140,7 +140,6 @@ struct ppu
     uint8_t nes_framebuffer [resolution]; //resolution correct?
     uint8_t rgb_framebuffer [resolution * 3];
 
-    void convertFromPalette(uint8_t high, uint8_t low, unsigned int palette_addy, uint8_t * colors);
     void renderBG();
 
     void convertFramebuffer();

@@ -24,13 +24,13 @@ void ppu::setVblank(bool value)
 void ppu::writeData(uint8_t word)
 {
     vram[ADDR] = word;
-    ADDR += vram_address_inc ? 32 : 1;
+    ADDR += vram_address_inc ;
 
 }
 uint8_t ppu::readData()
 {
     uint16_t saved_addy = ADDR;
-    ADDR += vram_address_inc ? 32 : 1;
+    ADDR += vram_address_inc ; 
     return vram[saved_addy]; 
 
 }
@@ -100,9 +100,14 @@ void ppu::writeCtrl(uint8_t word)
         //            vertical blanking interval (0: off; 1: on)
     CTRL = word;
     base_nametable_address  = word & 0x03;
+    base_nametable_address = (base_nametable_address << 10);
+    vram_latch = (vram_latch & 0xF3FF) | (uint16_t) base_nametable_address << 10;
+    base_nametable_address = 0x2000 | base_nametable_address;
+    base_attr_tbl_addy = base_nametable_address + 0x3C0;
     
     
     vram_address_inc = (word & 0x04) >> 2;
+    vram_address_inc = vram_address_inc ? 32 : 1;
     
     
     sprite_pattern = ((word & 0x08) >> 3) ? 0x1000 : 0x0000;
@@ -112,7 +117,6 @@ void ppu::writeCtrl(uint8_t word)
     sprite_size = (word & 0x20) >>5;
     //generate master/slave no effect
     generate_nmi = (word & 0x80) >>7 ;
-    vram_latch = (vram_latch & 0xF3FF) | (uint16_t) base_nametable_address << 10;
 }
 
 
@@ -191,45 +195,107 @@ void ppu::renderBG()
     // there are 30 rows of 32 tiles in the nametable
     // each tile is thus represented by one byte
     uint16_t name_tbl_addy = base_nametable_address;
-    uint16_t attr_tbl_addy = base_attr_tbl_addy;
-    uint16_t pattern_tbl_addy = background_pattern;
-    uint8_t tmp_colors [8];
-        for (int i=0; i< 32; i++) //for 1st scanline
-        {
-            //start at top left
-            uint8_t name_tbl_entry = vram[name_tbl_addy++];
-            uint8_t attr_tbl_entry = vram[attr_tbl_addy];
-            //TODO
-            //ATTRIBUTE TABLE PICS WHICH PALETTE
-            pattern_tbl_addy = background_pattern |  ( (0x0FF0 | (scanline%8))   & ((unsigned int)name_tbl_entry <<4));
-            uint8_t low_byte = vram[pattern_tbl_addy];
-            uint8_t high_byte = vram[pattern_tbl_addy + 8];
 
-            convertFromPalette(high_byte, low_byte, pattern_tbl_addy, tmp_colors);
-            pthread_mutex_lock(&framebuffer_mutex);
-            memcpy(nes_framebuffer + (scanline*256) + ( i*8) , tmp_colors, 8); //TODO
-                                                                        // combine with sprite data???
-            pthread_mutex_unlock(&framebuffer_mutex);
+
+
+    uint16_t attr_tbl_addy = base_attr_tbl_addy;
+
+    unsigned int attr_tbl_offset = scanline/32; //each entry in attr table is for 32x32 pixel square
+    attr_tbl_offset *= 8;
+    attr_tbl_addy += attr_tbl_offset;
+
+
+
+
+
+    uint16_t pattern_tbl_addy = background_pattern; //either 0x0000 or 0x1000
+    uint8_t tmp_colors [8];
+    for (int i=0; i< 32; i++) //for one scanline
+    {
+        //start at top left
+        uint8_t name_tbl_entry = vram[name_tbl_addy++];
+        if( i%4 == 0 && i != 0) attr_tbl_addy +=1;
+        uint8_t attr_tbl_entry = vram[attr_tbl_addy];
+        //ATTRIBUTE TABLE PICS WHICH PALETTE
+
+        pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline%8));
+
+        uint8_t low_byte = vram[pattern_tbl_addy];
+        uint8_t high_byte = vram[pattern_tbl_addy + 8];
+
+
+        // 
+        //
+        // Convert From palette to NES colour
+        //
+        //
+
+
+        uint8_t colors[8];
+        unsigned int attr_tbl_bits;
+        if ( scanline % 32  < 16 )
+        {
+            //we are at top of attr table square
+
+
+            if ( i% 32 < 16)
+            {   // we are at top-left
+                attr_tbl_bits = attr_tbl_entry & 0x03;
+
+            }
+            else
+            {   //top-right
+                attr_tbl_bits = attr_tbl_entry & 0x0C;
+
+            }
+        } else {
+            //bottom
+            if(i%32 < 16)
+            {
+                attr_tbl_bits = attr_tbl_entry & 0x30;
+
+            } else
+            {
+                attr_tbl_bits = attr_tbl_entry & 0xC0;
+
+            }
+
+
 
         }
 
 
-}
-void ppu::convertFromPalette(uint8_t high, uint8_t low, unsigned int palette_addy, uint8_t * colors)
-{
-    int lut[] = {0x1, 0x5, 0x9, 0xD};
-    for( int i = 0 ; i < 8 ; i ++)
-    {
-        uint8_t high_bit = ((high >> (7-i)) & 0x01);
-        uint8_t low_bit = ((low >> (7-i)) & 0x01);
 
-        uint8_t palette_num = (high_bit << 1) + low_bit;
+        for( int j = 0 ; j < 8 ; j ++)
+        {
+            high_byte = ((high_byte >> (7-j)) & 0x01);
+            low_byte = ((low_byte >> (7-j)) & 0x01);
 
-        colors[i] = vram[palette_addy + lut[palette_num]];
+            uint8_t palette_num = (high_byte << 1) + low_byte;
+
+            uint16_t address = (bg_palette_addy & 0xff00) | (attr_tbl_bits << 2);
+            address |= palette_num;
+            colors[j] = vram[address];;
+        }
+
+
+        //
+        //
+        //
+        //
+
+
+
+        pthread_mutex_lock(&framebuffer_mutex);
+        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , tmp_colors, 8); //TODO
+        // combine with sprite data???
+        pthread_mutex_unlock(&framebuffer_mutex);
+
     }
 
 
 }
+
 
 
 void renderSprites()
@@ -310,8 +376,9 @@ void ppu::step()
     
     if ( cycle == 341)
     {
-        cycle = 0;
+        cycle = 1;
         scanline++;
+        return;
     }
 
     cycle++;
