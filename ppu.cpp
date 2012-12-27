@@ -166,7 +166,7 @@ uint8_t ppu::readStatus ()
     
 }
 
-void ppu::writeOAM( uint8_t word)
+void ppu::writeOAMAddress( uint8_t word)
 {
    sprite_ram_addy =word;
 }
@@ -180,6 +180,13 @@ void ppu::writeOAMData( uint8_t word)
     //type is uint8_t
 
 }
+
+uint8_t readOAMData()
+{
+    return sprite_ram[sprite_ram_addy];
+}
+
+
 void ppu::writeDMA(uint8_t value)
 {
     DMA_WAIT = 512;

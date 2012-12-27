@@ -19,6 +19,12 @@ bool ram::preRamStore(uint8_t value, uint16_t memloc)
         case 0x2001:
             PPU->writeMask(value);
             return true;
+        case 0x2003:
+            PPU->writeOAMAddress(value);
+            return true;
+        case 0x2004:
+            ppu->writeOAMData(value);
+            return true;
         case 0x2006:
             PPU->writeAddr(value);
             return true;
@@ -47,6 +53,9 @@ bool ram::preRamRead(uint16_t memloc, uint8_t * return_value)
             return true;
         case 0x2002:
             *return_value = PPU->readStatus();
+            return true;
+        case 0x2004:
+            *return_value = PPU->readOAMData();
             return true;
         case 0x2007:
             *return_value = PPU->readData();

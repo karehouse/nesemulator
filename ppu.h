@@ -150,8 +150,9 @@ struct ppu
     void writeStatus (uint8_t word);
     void writeMask   (uint8_t word);
     void writeCtrl   (uint8_t word);
-    void writeOAM    (uint8_t word);
+    void writeOAMAddress    (uint8_t word);
     void writeOAMData(uint8_t word);
+    uint8_t readOAMData();
     void writeDMA    (uint8_t word);
     void writeScroll (uint8_t word);
     uint8_t readStatus();
