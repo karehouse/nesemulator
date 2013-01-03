@@ -156,17 +156,22 @@ struct ppu
     void writeDMA    (uint8_t word);
     void writeScroll (uint8_t word);
     uint8_t readStatus();
+
+    uint8_t readVram(uint16_t address);
+    void writeVram(uint8_t value, uint16_t address);
     
     uint16_t vram_latch;
     bool write_latch;
     void writeData(uint8_t word);
     uint8_t readData();
     void writeAddr(uint8_t word);
+    void renderSprites();
 
 private:
     void setVblank(bool);
     void setSpriteOverflow(bool status);
     void setSprite0Hit(bool status);
+    void updateEndScanLine();
 
 };
 

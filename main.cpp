@@ -105,7 +105,6 @@ void checkCarrySubtraction(bool carryNeeded)
     CPU.setFlag('C', !carryNeeded);
 }
     
-
 void checkBRK(uint16_t value);
 void checkDEC(uint16_t value);
 void checkIRQ(uint16_t value);
@@ -1711,17 +1710,16 @@ void * run(void* ptr){
         }
 #ifdef DEBUG_INSTR_TEST
         total_cycles += cycles ;
-        if ( total_cycles % 1000 < 5)
+        if (total_cycles > 50000)
         {
-            char buf[1000];
             char c;
-            unsigned int j = 0x6004;
-            while ( ( c=RAM->read(j)))
-            {
-                buf[j-0x6004] = c;
-                j++;
+            for(int i =0; i < 0x2000;i++)
+            {   
+                
+                printf("%X :  %X    ", i, RAM->read(i));
+                if( i % 10 == 0) printf("\n");
             }
-            printf("OUTPUT:\n\n %s\n\n\n", buf);
+            exit(1);
         }
 #endif
 
@@ -1758,7 +1756,6 @@ unsigned int data[] = {
 
 void DisplayFunc()
 {
-    PPU->convertFramebuffer();
 
 
     glMatrixMode (GL_PROJECTION);
@@ -1768,10 +1765,10 @@ void DisplayFunc()
 
     glClear(GL_COLOR_BUFFER_BIT);
 
-
+    //printf("color = %X\n", PPU->rgb_framebuffer[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 8, 8, 0,  GL_RGB,GL_UNSIGNED_BYTE, PPU->rgb_framebuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, WINDOW_SIZE_X, WINDOW_SIZE_Y, 0,  GL_RGB,GL_UNSIGNED_BYTE, PPU->rgb_framebuffer);
     glBegin(GL_QUADS);
         glTexCoord2f(0.0, 0.0); glVertex2f(0.0, 0.0);
         glTexCoord2f(0.0, 1.0); glVertex2f(0.0, 1.0);
@@ -1827,7 +1824,7 @@ int main(int argc, char * argv[])
         uint8_t high;
         high = RAM->read(0xFFFD);
         low = RAM->read(0xFFFC);
-        printf("high: %x , low: %x\n\n", high, low);
+
         if( !strcmp(argv[1], "nestest.nes"))
         {
             CPU.pc = 0xC000; 

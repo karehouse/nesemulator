@@ -46,11 +46,46 @@ void ppu::setSpriteOverflow(bool status)
     }
 }
 
+uint16_t translateAddress(uint16_t address)
+{
+    //nametable mirroring
+    if ( address > 0x2000 && address < 0x3000)
+    {
+        if ( ROM->mirroring ) ///vertical
+        {
+            if ( address > 0x2800 ) 
+            {
+                address -= 0x800;
+            }
+        } 
+        else
+        { //horizontal
+            if ((address >= 0x2400 && address < 0x2800) || ( address > 0x2C00))
+            {
+                address -= 0x400;
+            }
 
+
+        }
+
+    }
+    return address;
+}
+uint8_t ppu::readVram(uint16_t address)
+{
+
+        return vram[translateAddress(address)];
+
+    }
+void ppu::writeVram(uint8_t value, uint16_t address)
+{
+    vram[translateAddress(address)] = value;
+
+}
 
 void ppu::writeData(uint8_t word)
 {
-    vram[ADDR] = word;
+    writeVram(word, ADDR);
     ADDR += vram_address_inc ;
 
 }
@@ -58,7 +93,7 @@ uint8_t ppu::readData()
 {
     uint16_t saved_addy = ADDR;
     ADDR += vram_address_inc ; 
-    return vram[saved_addy]; 
+    return readVram(saved_addy);
 
 }
 void ppu::writeScroll (uint8_t word)
@@ -227,8 +262,18 @@ void ppu::writeDMA(uint8_t value)
     }
 
 }
+bool print = false;
 void ppu::renderBG()
 {
+    if (print)
+    {
+        for (int i =0; i< 256; i ++)
+        {
+            if ( i%64 == 0) printf("\n");
+            printf("%X ", vram[base_nametable_address + i]);
+        }
+        print = false;
+    }
     //for nametable
     // each byte represents 8x8 pixels
     // there are 30 rows of 32 tiles in the nametable
@@ -248,19 +293,18 @@ void ppu::renderBG()
 
 
     uint16_t pattern_tbl_addy = background_pattern; //either 0x0000 or 0x1000
-    uint8_t tmp_colors [8];
     for (int i=0; i< 32; i++) //for one scanline
     {
         //start at top left
-        uint8_t name_tbl_entry = vram[name_tbl_addy++];
+        uint8_t name_tbl_entry = readVram(name_tbl_addy++);
         if( i%4 == 0 && i != 0) attr_tbl_addy +=1;
-        uint8_t attr_tbl_entry = vram[attr_tbl_addy];
+        uint8_t attr_tbl_entry = readVram(attr_tbl_addy);
         //ATTRIBUTE TABLE PICS WHICH PALETTE
 
         pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline%8));
 
-        uint8_t low_byte = vram[pattern_tbl_addy];
-        uint8_t high_byte = vram[pattern_tbl_addy + 8];
+        uint8_t low_byte = readVram(pattern_tbl_addy);
+        uint8_t high_byte = readVram(pattern_tbl_addy + 8);
 
 
         // 
@@ -270,7 +314,6 @@ void ppu::renderBG()
         //
 
 
-        uint8_t colors[8];
         unsigned int attr_tbl_bits;
         if ( scanline % 32  < 16 )
         {
@@ -284,18 +327,18 @@ void ppu::renderBG()
             }
             else
             {   //top-right
-                attr_tbl_bits = attr_tbl_entry & 0x0C;
+                attr_tbl_bits = (attr_tbl_entry & 0x0C) >> 2;
 
             }
         } else {
             //bottom
             if(i%32 < 16)
             {
-                attr_tbl_bits = attr_tbl_entry & 0x30;
+                attr_tbl_bits = (attr_tbl_entry & 0x30) >> 4;
 
             } else
             {
-                attr_tbl_bits = attr_tbl_entry & 0xC0;
+                attr_tbl_bits = (attr_tbl_entry & 0xC0) >> 6;
 
             }
 
@@ -305,16 +348,17 @@ void ppu::renderBG()
 
 
 
+        uint8_t colors[8];
         for( int j = 0 ; j < 8 ; j ++)
         {
-            high_byte = ((high_byte >> (7-j)) & 0x01);
-            low_byte = ((low_byte >> (7-j)) & 0x01);
+            uint8_t high_bit = ((high_byte >> (7-j)) & 0x01);
+            uint8_t low_bit = ((low_byte >> (7-j)) & 0x01);
 
-            uint8_t palette_num = (high_byte << 1) + low_byte;
+            uint8_t palette_num = (high_bit << 1) + low_bit;
 
             uint16_t address = (bg_palette_addy & 0xff00) | (attr_tbl_bits << 2);
-            address |= palette_num;
-            colors[j] = vram[address];;
+            address |= ( 0x0003& palette_num);
+            colors[j] = readVram(address);
         }
 
 
@@ -325,10 +369,12 @@ void ppu::renderBG()
 
 
 
-        pthread_mutex_lock(&framebuffer_mutex);
-        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , tmp_colors, 8); //TODO
+          //  printf("color[0] = %X\n", colors[0]);
+        //pthread_mutex_lock(&framebuffer_mutex);
+        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , colors, 8); //TODO
+        //printf("nes_frame = %X\n", (nes_framebuffer + (scanline * 256) + (i*8))[0]);
         // combine with sprite data???
-        pthread_mutex_unlock(&framebuffer_mutex);
+        //pthread_mutex_unlock(&framebuffer_mutex);
 
     }
 
@@ -336,10 +382,61 @@ void ppu::renderBG()
 }
 
 
-
-void renderSprites()
+void ppu::renderSprites()
 {
+    uint8_t  curr_sprite_data[32];
+
+    int num_sprites = 0;
+    int sprite_height; 
+    int sprite_offset = 0;
+    while ( num_sprites < 8 ) 
+    {
+
+        sprite_height = sprite_size ? 16 : 8;
+        uint8_t y_coord = sprite_ram[ 4 * sprite_offset] + 1; //sprite data is delayed by one scanline
+        if ( y_coord <= (scanline - sprite_height) && y_coord >= scanline)
+        {
+            //y_coord is valid
+            num_sprites++;
+
+            for ( int i = 0; i< 4 ; i++)
+            {
+                curr_sprite_data[(4 * num_sprites) + i] = sprite_ram[(4 * sprite_offset) + i];
+            }
+
+
+            sprite_offset++;
+            if (sprite_offset == 64)
+            {
+                break;
+            }
+
+        }
+        else 
+        {
+            //y_coord is not valid
+            sprite_offset++;
+            if (sprite_offset == 64)
+            {
+                break;
+            }
+        }
+    }
+    // exactly 8 sprites found
+    if( num_sprites == 8) setSpriteOverflow(true);
+
+
+    //copied all applicable sprite data to curr_sprite_data
+    //now get the proper colour and add it to the framebuffer with the bg pixels
+
+
+
+    
+
+    
 }
+
+
 void updateSprites()
 {
 }
@@ -347,6 +444,36 @@ void updateTiles()
 {
 }
 
+void ppu::updateEndScanLine()
+{
+    if ( show_background || show_sprites )
+    {
+        if ( ADDR & 0x7000 == 0x7000 )
+        {
+                ADDR ^= 0x7000;
+                if ( ADDR & 0x3E0 == 0x3A0 )
+                {
+                    ADDR ^= 0xBA0;
+
+                } else if (ADDR & 0x3E0 == 0x3E0 )
+                {
+                    ADDR ^= 0x3E0;
+                } else
+                {
+                    ADDR += 20;
+                }
+
+
+        } else {
+            ADDR +=0x1000;
+        }
+        ADDR = (ADDR & 0x7BE0) | (vram_latch & 0x41f);
+    }
+
+    else {
+        ADDR += vram_address_inc;
+    }
+}
 
 void ppu::step()
 { 
@@ -371,16 +498,27 @@ void ppu::step()
     {
         if ( cycle ==255)
         {
-//                if (show_background ) 
+            
+                if (show_background ) 
                 {
                     renderBG();
+
+        PPU->convertFramebuffer();
+                    //printf("scanline = %d\n", scanline);
                 }
 
                 if (show_sprites) 
                 {
-                   // renderSprites();
-                   setSprite0Hit(true);
+                    setSprite0Hit(true);
+                    renderSprites();
                 }
+        }
+        else if (cycle == 256)
+        {
+            if ( show_background)
+            {
+                updateEndScanLine();
+            }
         }
         else if( cycle == 319)
         {
@@ -398,22 +536,26 @@ void ppu::step()
     {
         if (cycle ==1)
         {
-        //vblank!
-        setVblank(true);
-        if(ppu::generate_nmi)
-        {
-            
-            CPU.request_nmi = true;
+            //vblank!
+            setVblank(true);
+            if(ppu::generate_nmi)
+            {
+
+                CPU.request_nmi = true;
+            }
         }
-        }
+       // PPU->convertFramebuffer();
     }
     
     else if (scanline == 260 ) 
     {
-        //endvblank
-        if( cycle == 340 ) 
+        if(cycle == 1)
         {
             setVblank(false);
+        }
+
+        else if( cycle == 340 ) 
+        {
             scanline = -1;
             cycle = 0;
         }
@@ -429,6 +571,7 @@ void ppu::step()
     cycle++;
 
 }
+//64 colors
 const unsigned int color_palette [] = 
  {
         0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 
@@ -448,14 +591,16 @@ const unsigned int color_palette [] =
         0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 
         0x00FCFC, 0xF8D8F8, 0x000000, 0x000000, 
     };
+
 void ppu::convertFramebuffer()
 {
     //convert from nes color space to rgb
     for ( unsigned int i = 0 ; i < resolution ;i++ )
     {
-        pthread_mutex_lock(&framebuffer_mutex);
+//        pthread_mutex_lock(&framebuffer_mutex);
         uint32_t color = color_palette[nes_framebuffer[i]];
-        pthread_mutex_unlock(&framebuffer_mutex);
+        //if( i % 256 == 0) printf("CLOLOR = %X\n", rgb_framebuffer[(3*i) + 2]);
+  //      pthread_mutex_unlock(&framebuffer_mutex);
         rgb_framebuffer[(3*i)] = ((color & 0xFF0000) >> 16) & 0xFF;
         rgb_framebuffer[(3*i)+1] = ((color & 0xFF00) >> 8) & 0xFF;
         rgb_framebuffer[(3*i)+2] = ((color & 0xFF));
