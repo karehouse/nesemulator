@@ -299,6 +299,8 @@ void ppu::renderBG()
     // there are 30 rows of 32 tiles in the nametable
     // each tile is thus represented by one byte
     uint16_t name_tbl_addy = base_nametable_address;
+    unsigned int name_tbl_offset = scanline * 32;
+    name_tbl_addy += name_tbl_offset;
 
 
 
@@ -306,9 +308,8 @@ void ppu::renderBG()
 
     unsigned int attr_tbl_offset = scanline/32; //each entry in attr table is for 32x32 pixel square
     attr_tbl_offset *= 8;
+    attr_tbl_offset --;
     attr_tbl_addy += attr_tbl_offset;
-
-
 
 
 
@@ -317,14 +318,13 @@ void ppu::renderBG()
     {
         //start at top left
         uint8_t name_tbl_entry = readVram(name_tbl_addy++);
-        if( i%4 == 0 && i != 0) attr_tbl_addy +=1;
+        if( i%4 == 0) attr_tbl_addy +=1;
         uint8_t attr_tbl_entry = readVram(attr_tbl_addy);
         //ATTRIBUTE TABLE PICS WHICH PALETTE
         unsigned int attr_tbl_bits;
         if ( scanline % 32  < 16 )
         {
             //we are at top of attr table square
-
 
             if ( i% 32 < 16)
             {   // we are at top-left
@@ -345,52 +345,35 @@ void ppu::renderBG()
             } else
             {
                 attr_tbl_bits = (attr_tbl_entry & 0xC0) >> 6;
-
             }
-
-
-
         }
 
         pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline%8));
-
-
 
         // 
         //
         // Convert From palette to NES colour
         //
-        //
-
 
         uint8_t colors[8];
         getColors(colors ,pattern_tbl_addy,attr_tbl_bits , false);
-        if ( scanline ==2 && i == 0)
+        if ( scanline ==1)
         {   
             for (int k = 0; k< 8; k++)
             {
 
-                //printf("colors %d  = %X \n", k, color_palette[colors[k]]);
+    //            printf("colors %d  = %X \n", k, colors[k]);
             }
         }
 
-        //
-        //
-        //
-        //
-
-
-
-          //  printf("color[0] = %X\n", colors[0]);
         //pthread_mutex_lock(&framebuffer_mutex);
         //cause bg gets rendered first we can just copy it!
+
         memcpy(nes_framebuffer + (scanline*256) + ( i*8) , colors, 8); //
-        //printf("nes_frame = %X\n", (nes_framebuffer + (scanline * 256) + (i*8))[0]);
-        // combine with sprite data???
+
         //pthread_mutex_unlock(&framebuffer_mutex);
 
     }
-
 
 }
 
@@ -615,8 +598,8 @@ void ppu::step()
 
                 if (show_sprites) 
                 {
-            //        setSprite0Hit(true);
-             //       renderSprites();
+                    setSprite0Hit(true);
+                    //renderSprites();
                 }
         }
         else if (cycle == 256)
