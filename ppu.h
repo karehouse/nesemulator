@@ -127,6 +127,7 @@ struct ppu
 
     static const unsigned int sprite_palette_addy = 0x3F10;
                                             // 1st palette is $3F11 - $3F13 , 2nd is $3F15 - $3F17 etc., 4 total , until $3F1F
+    static const unsigned int universal_bg_color = 0x3F00;
 
     //uint8_t *bg_ram = &vram[0x1000];
     //uint8_t *nametable_ram = &vram[0x2000];
@@ -172,6 +173,7 @@ private:
     void setSpriteOverflow(bool status);
     void setSprite0Hit(bool status);
     void updateEndScanLine();
+    void getColors(uint8_t * colors , uint16_t pattern_table_addy, unsigned int palette_choice_bits, bool sprite);
 
 };
 

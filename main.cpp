@@ -1810,7 +1810,7 @@ int main(int argc, char * argv[])
                 RAM = new mmc1();
                 break;
             default:
-                printf("error mapper not implemented yet\n\n");
+                printf("error mapper %d not implemented yet\n\n", ROM->mapper_number);
                 exit(42);
         }
         ROM->setupRam();

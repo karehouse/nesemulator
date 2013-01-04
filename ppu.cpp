@@ -4,6 +4,26 @@
 #include "assert.h"
 #include <pthread.h>
 pthread_mutex_t framebuffer_mutex;
+//64 colors
+     unsigned int color_palette [] = 
+    {
+        0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 
+        0x940084, 0xA80020, 0xA81000, 0x881400, 
+        0x503000, 0x007800, 0x006800, 0x005800, 
+        0x004058, 0x000000, 0x000000, 0x000000, 
+        0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 
+        0xD800CC, 0xE40058, 0xF83800, 0xE45C10, 
+        0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 
+        0x008888, 0x000000, 0x000000, 0x000000, 
+        0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8, 
+        0xF878F8, 0xF85898, 0xF87858, 0xFCA044, 
+        0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 
+        0x00E8D8, 0x787878, 0x000000, 0x000000, 
+        0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 
+        0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8, 
+        0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 
+        0x00FCFC, 0xF8D8F8, 0x000000, 0x000000, 0xFFFFFF
+    };
 void ppu::render()
 {
 
@@ -174,7 +194,7 @@ void ppu::writeCtrl(uint8_t word)
     
     sprite_pattern = ((word & 0x08) >> 3) ? 0x1000 : 0x0000;
    
-    
+
     background_pattern = ((word & 0x10) >> 4) ? 0x0000 : 0x1000;
     sprite_size = (word & 0x20) >>5;
     //generate master/slave no effect
@@ -300,20 +320,6 @@ void ppu::renderBG()
         if( i%4 == 0 && i != 0) attr_tbl_addy +=1;
         uint8_t attr_tbl_entry = readVram(attr_tbl_addy);
         //ATTRIBUTE TABLE PICS WHICH PALETTE
-
-        pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline%8));
-
-        uint8_t low_byte = readVram(pattern_tbl_addy);
-        uint8_t high_byte = readVram(pattern_tbl_addy + 8);
-
-
-        // 
-        //
-        // Convert From palette to NES colour
-        //
-        //
-
-
         unsigned int attr_tbl_bits;
         if ( scanline % 32  < 16 )
         {
@@ -346,21 +352,27 @@ void ppu::renderBG()
 
         }
 
+        pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline%8));
+
+
+
+        // 
+        //
+        // Convert From palette to NES colour
+        //
+        //
 
 
         uint8_t colors[8];
-        for( int j = 0 ; j < 8 ; j ++)
-        {
-            uint8_t high_bit = ((high_byte >> (7-j)) & 0x01);
-            uint8_t low_bit = ((low_byte >> (7-j)) & 0x01);
+        getColors(colors ,pattern_tbl_addy,attr_tbl_bits , false);
+        if ( scanline ==2 && i == 0)
+        {   
+            for (int k = 0; k< 8; k++)
+            {
 
-            uint8_t palette_num = (high_bit << 1) + low_bit;
-
-            uint16_t address = (bg_palette_addy & 0xff00) | (attr_tbl_bits << 2);
-            address |= ( 0x0003& palette_num);
-            colors[j] = readVram(address);
+                //printf("colors %d  = %X \n", k, color_palette[colors[k]]);
+            }
         }
-
 
         //
         //
@@ -371,7 +383,8 @@ void ppu::renderBG()
 
           //  printf("color[0] = %X\n", colors[0]);
         //pthread_mutex_lock(&framebuffer_mutex);
-        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , colors, 8); //TODO
+        //cause bg gets rendered first we can just copy it!
+        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , colors, 8); //
         //printf("nes_frame = %X\n", (nes_framebuffer + (scanline * 256) + (i*8))[0]);
         // combine with sprite data???
         //pthread_mutex_unlock(&framebuffer_mutex);
@@ -381,31 +394,55 @@ void ppu::renderBG()
 
 }
 
+void ppu::getColors(uint8_t * colors , uint16_t pattern_table_addy, unsigned int palette_choice_bits, bool sprite)
+{
+
+        uint8_t low_byte = readVram(pattern_table_addy);
+        uint8_t high_byte = readVram(pattern_table_addy + 8);
+        uint16_t palette_addy = sprite ? sprite_palette_addy: bg_palette_addy;
+
+        for( int j = 0 ; j < 8 ; j ++)
+        {
+            uint8_t high_bit = ((high_byte >> (7-j)) & 0x01);
+            uint8_t low_bit = ((low_byte >> (7-j)) & 0x01);
+
+            uint8_t palette_num = (high_bit << 1) + low_bit;
+            uint16_t address = (palette_addy & 0xff00) | (palette_choice_bits << 2);
+            address |= ( 0x0003& palette_num);
+            if ( palette_num == 0) // No color / transparent
+            {
+                colors[j] = 64; //ony 64 colors so this means no color
+
+            } else {
+                colors[j] = readVram(address);
+                assert(colors[j] < 64);
+            }
+        }
+}
 
 void ppu::renderSprites()
 {
-    uint8_t  curr_sprite_data[32];
+    uint8_t  curr_sprite_data[8][4];
 
     int num_sprites = 0;
-    int sprite_height; 
+    int  sprite_height = sprite_size ? 16 : 8; //I assume this will not change in the middle of rendering
     int sprite_offset = 0;
     while ( num_sprites < 8 ) 
     {
 
-        sprite_height = sprite_size ? 16 : 8;
         uint8_t y_coord = sprite_ram[ 4 * sprite_offset] + 1; //sprite data is delayed by one scanline
         if ( y_coord <= (scanline - sprite_height) && y_coord >= scanline)
         {
             //y_coord is valid
-            num_sprites++;
 
             for ( int i = 0; i< 4 ; i++)
             {
-                curr_sprite_data[(4 * num_sprites) + i] = sprite_ram[(4 * sprite_offset) + i];
+                curr_sprite_data[num_sprites][i] = sprite_ram[(4 * sprite_offset) + i];
             }
 
 
             sprite_offset++;
+            num_sprites++;
             if (sprite_offset == 64)
             {
                 break;
@@ -423,13 +460,83 @@ void ppu::renderSprites()
         }
     }
     // exactly 8 sprites found
-    if( num_sprites == 8) setSpriteOverflow(true);
+    if( num_sprites == 7) setSpriteOverflow(true);
 
 
     //copied all applicable sprite data to curr_sprite_data
     //now get the proper colour and add it to the framebuffer with the bg pixels
+    
+    uint8_t scanline_buf[256][2];// for each pixel on line:  0 is data 1 is priority
+    unsigned int pattern_tbl_addy;
+    for (int i =0; i < num_sprites; i++)
+    {
+        //RENDER SPRITESS!!
 
+        uint8_t y_pos = curr_sprite_data[i][0]; //top of sprite
+        uint8_t x_pos = curr_sprite_data[i][3]; //left of sprite
+        uint8_t sprite_tile_num = curr_sprite_data[i][1];
+        unsigned int palette = (curr_sprite_data[i][2] & (0x3));
+        bool behind_background = curr_sprite_data[i][2] & (0x20);
+        bool hflip = curr_sprite_data[i][2] & (0x40);
+        bool vflip = curr_sprite_data[i][2] & (0x80);
 
+        //scanline is our current y coordinate
+        int y_coord; // between 0 and sprite_height-1  y coord within sprite
+        y_coord = scanline - y_pos;
+        assert(y_coord >= 0 && y_coord <=sprite_height-1 );
+
+        //
+        // Calculate PAttern Table Addresss
+        //
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        if ( sprite_height == 8)
+        {
+
+            pattern_tbl_addy = (sprite_pattern | ((uint16_t) sprite_tile_num << 4))  | y_coord;    
+                
+        
+        } else //height is 16
+        {
+            pattern_tbl_addy = ( sprite_tile_num & 0x01) << 7; 
+            pattern_tbl_addy |= (sprite_tile_num & 0xFE); 
+
+            if ( y_coord >= 8) { //bottom half
+                pattern_tbl_addy += 0x10;
+            }
+
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+        uint8_t colors[8];
+        getColors(colors, pattern_tbl_addy, palette, true); 
+        for ( int j = 0; j < 8; j++)
+        {
+            if ( scanline_buf[x_pos + j][0] == 0 ) //use first pixel found only
+            {
+                scanline_buf[x_pos + j][0] = colors[j];
+                scanline_buf[x_pos + j][1] = behind_background;
+            }
+        }
+    } 
+
+    //Done adding sprite colors to  scanline_buf .... now to combine it with the background in nes_framebuffer....
+
+    int base = scanline * 256;
+    assert(base <= 256 * 240);
+    //color 64 means blank!
+    for ( int i =0 ; i < 256; i++ )
+    {
+        if ( scanline_buf[i][0] != 64 && !scanline_buf[i][1] ) 
+        {
+            //replace color
+            nes_framebuffer[base + i] = scanline_buf[i][0];
+        } else if ( scanline_buf[i][0] != 64 )
+        {
+            nes_framebuffer[base+i] = scanline_buf[i][0];
+        }
+    }
 
     
 
@@ -494,7 +601,7 @@ void ppu::step()
             }
         }
     } 
-    else if (scanline >0 && scanline <= 239 )
+    else if (scanline >=0 && scanline <= 239 )
     {
         if ( cycle ==255)
         {
@@ -503,22 +610,23 @@ void ppu::step()
                 {
                     renderBG();
 
-        PPU->convertFramebuffer();
-                    //printf("scanline = %d\n", scanline);
+    //                printf("scanline = %d\n", scanline);
                 }
 
                 if (show_sprites) 
                 {
-                    setSprite0Hit(true);
-                    renderSprites();
+            //        setSprite0Hit(true);
+             //       renderSprites();
                 }
         }
         else if (cycle == 256)
         {
             if ( show_background)
             {
-                updateEndScanLine();
+            //    updateEndScanLine();
             }
+
+
         }
         else if( cycle == 319)
         {
@@ -536,6 +644,7 @@ void ppu::step()
     {
         if (cycle ==1)
         {
+            PPU->convertFramebuffer();
             //vblank!
             setVblank(true);
             if(ppu::generate_nmi)
@@ -544,7 +653,6 @@ void ppu::step()
                 CPU.request_nmi = true;
             }
         }
-       // PPU->convertFramebuffer();
     }
     
     else if (scanline == 260 ) 
@@ -571,35 +679,18 @@ void ppu::step()
     cycle++;
 
 }
-//64 colors
-const unsigned int color_palette [] = 
- {
-        0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 
-        0x940084, 0xA80020, 0xA81000, 0x881400, 
-        0x503000, 0x007800, 0x006800, 0x005800, 
-        0x004058, 0x000000, 0x000000, 0x000000, 
-        0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 
-        0xD800CC, 0xE40058, 0xF83800, 0xE45C10, 
-        0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 
-        0x008888, 0x000000, 0x000000, 0x000000, 
-        0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8, 
-        0xF878F8, 0xF85898, 0xF87858, 0xFCA044, 
-        0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 
-        0x00E8D8, 0x787878, 0x000000, 0x000000, 
-        0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 
-        0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8, 
-        0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 
-        0x00FCFC, 0xF8D8F8, 0x000000, 0x000000, 
-    };
 
 void ppu::convertFramebuffer()
 {
+    color_palette[64] = color_palette[readVram(universal_bg_color)];
+//    printf("unicolor = %X\n", color_palette[64]);
     //convert from nes color space to rgb
     for ( unsigned int i = 0 ; i < resolution ;i++ )
     {
 //        pthread_mutex_lock(&framebuffer_mutex);
         uint32_t color = color_palette[nes_framebuffer[i]];
-        //if( i % 256 == 0) printf("CLOLOR = %X\n", rgb_framebuffer[(3*i) + 2]);
+
+
   //      pthread_mutex_unlock(&framebuffer_mutex);
         rgb_framebuffer[(3*i)] = ((color & 0xFF0000) >> 16) & 0xFF;
         rgb_framebuffer[(3*i)+1] = ((color & 0xFF00) >> 8) & 0xFF;
