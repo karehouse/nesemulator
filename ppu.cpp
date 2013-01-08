@@ -366,8 +366,21 @@ void ppu::writeDMA(uint8_t value)
     }
 
 }
+
+
+
 void ppu::renderBG()
 {
+
+    //for nametable
+    // each byte represents 8x8 pixels
+    // there are 30 rows of 32 tiles in the nametable
+    // each tile is thus represented by one byte
+    //
+    // each byte in attr table is used for a 32 by 32 pixel square
+    // i.e. A 4 byte square in the nametable
+    //
+    //
     uint16_t name_tbl_addy = base_nametable_address;
     unsigned int nm_tbl_offset = 0;
     uint16_t attr_tbl_addy = base_attr_tbl_addy;
@@ -382,6 +395,8 @@ void ppu::renderBG()
 
         if ( sl % 32 == 0)
         {
+            //each entry in attr table is for 32x32 pixel square
+            // so change every 32 lines
             attr_tbl_offset = ( (sl/32) * 8 );
         }
 
@@ -392,6 +407,7 @@ void ppu::renderBG()
         
         for (int deltaX = 0; deltaX < 32; deltaX++)
         {
+            //32 boxes of 8x8 pixels
             if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
 
             unsigned int curr_nm = readVram(name_tbl_addy++);
@@ -399,25 +415,27 @@ void ppu::renderBG()
 
             unsigned int attr_tbl_bits = 0x00;
 
+            //find our where we are in the attribute square
             if ( sl % 32 < 16)
             {
+                //top
                 if ( deltaX % 4 < 2 )
-                {
+                    //left
                     attr_tbl_bits = curr_attr & 0x3;
-                }
+
                 else
-                {
+                    //right
                     attr_tbl_bits = (curr_attr & 0xC) >> 2;
-                }
+
             } else
             {
+                //bottom
                 if (deltaX % 4 < 2)
-                {
+                    //left
                     attr_tbl_bits = (curr_attr & 0x30) >> 4;
-                } else
-                {
+                 else
+                    //right
                     attr_tbl_bits = (curr_attr & 0xC0) >>6;
-                }
             }
 
 
@@ -436,92 +454,10 @@ void ppu::renderBG()
         }
     }
     convertFramebuffer();
-    /*
-    //for nametable
-    // each byte represents 8x8 pixels
-    // there are 30 rows of 32 tiles in the nametable
-    // each tile is thus represented by one byte
-    uint16_t name_tbl_addy = base_nametable_address;
-    unsigned int name_tbl_offset = scanline * 32;
-    name_tbl_addy += name_tbl_offset;
-
-
-
-    uint16_t attr_tbl_addy = base_attr_tbl_addy;
-
-    unsigned int attr_tbl_offset = scanline/32; //each entry in attr table is for 32x32 pixel square
-    attr_tbl_offset *= 8;
-    attr_tbl_offset --;
-    attr_tbl_addy += attr_tbl_offset;
-
-
-
-    uint16_t pattern_tbl_addy = background_pattern; //either 0x0000 or 0x1000
-    for (int i=0; i< 32; i++) //for one scanline
-    {
-        //start at top left
-        uint8_t name_tbl_entry = readVram(name_tbl_addy++);
-        //uint8_t name_tbl_entry = readVram(ADDR);
-//        if( i%4 == 0) attr_tbl_addy +=1;
-        uint8_t attr_tbl_entry = readVram(attr_tbl_addy++);
-        //ADDR++;
-        //ATTRIBUTE TABLE PICS WHICH PALETTE
-        unsigned int attr_tbl_bits;
-        if ( scanline % 32  < 16 )
-        {
-            //we are at top of attr table square
-
-            if ( i% 32 < 16)
-            {   // we are at top-left
-                attr_tbl_bits = attr_tbl_entry & 0x03;
-
-            }
-            else
-            {   //top-right
-                attr_tbl_bits = (attr_tbl_entry & 0x0C) >> 2;
-
-            }
-        } else {
-            //bottom
-            if(i%32 < 16)
-            {
-                attr_tbl_bits = (attr_tbl_entry & 0x30) >> 4;
-
-            } else
-            {
-                attr_tbl_bits = (attr_tbl_entry & 0xC0) >> 6;
-            }
-        }
-
-        pattern_tbl_addy = background_pattern |  ( (0x0FF0 & ((unsigned int)name_tbl_entry <<4)) + (scanline+1%8));
-
-        // 
-        //
-        // Convert From palette to NES colour
-        //
-
-        uint8_t colors[8];
-        getColors(colors ,pattern_tbl_addy,attr_tbl_bits , false);
-        if ( scanline ==1)
-        {   
-            for (int k = 0; k< 8; k++)
-            {
-
-                //printf("colors %d  = %X \n", k, colors[k]);
-            }
-        }
-
-        //pthread_mutex_lock(&framebuffer_mutex);
-        //cause bg gets rendered first we can just copy it!
-
-        memcpy(nes_framebuffer + (scanline*256) + ( i*8) , colors, 8); //
-
-        //pthread_mutex_unlock(&framebuffer_mutex);
-
-    }
-    */
 
 }
+
+
 
 void ppu::getColors(uint8_t * colors , uint16_t pattern_table_addy, unsigned int palette_choice_bits, bool sprite)
 {

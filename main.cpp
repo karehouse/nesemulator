@@ -1703,21 +1703,14 @@ void * run(void* ptr){
 
         int error = step(RAM->read(CPU.pc));
         //one cpu cycles is three ppu cycles
-        // for cycles * 3 ppu.step ---
         if(error)
             return (void*)1;
         for ( int i = 0; i < 3*cycles; i++)
         {
             PPU->step();
         }
-        //total_cycles++; 
-        //if( total_cycles > 10000000)
-        //{
-        //printf("NAMETABLE_VIEWER ACTIVEEE!!!\n");
-        //PPU->nameTableViewer(0);
 
-        //sleep(100);
-        //}
+
 #ifdef DEBUG_INSTR_TEST
         total_cycles += cycles ;
         if (total_cycles > 50000)
