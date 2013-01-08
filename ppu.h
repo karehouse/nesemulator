@@ -168,6 +168,7 @@ struct ppu
     void writeAddr(uint8_t word);
     void renderSprites();
 
+    void nameTableViewer(unsigned int);
 private:
     void setVblank(bool);
     void setSpriteOverflow(bool status);
