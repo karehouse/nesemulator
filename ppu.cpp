@@ -175,13 +175,55 @@ uint16_t translateAddress(uint16_t address)
 }
 uint8_t ppu::readVram(uint16_t address)
 {
+        address = translateAddress(address);
+        
+        if ( address < 0x1000)
+        {
+            return chr_rom[0][address];
 
-        return vram[translateAddress(address)];
+        } else if ( address < 0x2000)
+        {
+            return chr_rom[1][address - 0x1000];
+        
+        } else if ( address < 0x3000)
+        {
+            return nametable_rom[address - 0x2000];
+        
+        } else if ( address < 0x4000)
+        {
+            return palettes[address & 0x1F];
+        } else
+        {
+            printf( " invalid PPU mem VRAM address read address = %X\n\n", address);
+            exit(0);
+        }
 
-    }
+
+}
 void ppu::writeVram(uint8_t value, uint16_t address)
 {
-    vram[translateAddress(address)] = value;
+        address = translateAddress(address);
+        
+        if ( address < 0x1000)
+        {
+            chr_rom[0][address] = value;
+
+        } else if ( address < 0x2000)
+        {
+            chr_rom[1][address - 0x1000] = value;
+        
+        } else if ( address < 0x3000)
+        {
+            nametable_rom[address - 0x2000] = value;
+        
+        } else if ( address < 0x4000)
+        {
+            palettes[address & 0x1F] = value;
+        } else
+        {
+            printf( " invalid PPU mem VRAM address read address = %X\n\n", address);
+            exit(0);
+        }
 
 }
 
@@ -200,7 +242,6 @@ uint8_t ppu::readData()
 }
 void ppu::writeScroll (uint8_t word)
 {
-/*
     if(write_latch)
     {
         vram_latch &= 0x7FE0;
@@ -211,7 +252,6 @@ void ppu::writeScroll (uint8_t word)
         vram_latch |= (( (uint16_t)word & 0xF8) << 2) | (((uint16_t)word & 0x07) << 12); 
     }
     write_latch = !write_latch;
-    */
 }
 void ppu::writeAddr(uint8_t word)
 {
@@ -682,7 +722,7 @@ void ppu::step()
                 if (show_sprites) 
                 {
                     setSprite0Hit(true);
-                    //renderSprites();
+                    renderSprites();
                 }
         }
         else if (cycle == 256)

@@ -1689,7 +1689,7 @@ void * run(void* ptr){
 #ifdef DEBUG_INSTR_TEST
         int total_cycles = 0;
 #endif
-        int total_cycles = 0;
+        //int total_cycles = 0;
     while ( true)
     {
 #ifdef DEBUG_NESTEST
@@ -1841,6 +1841,7 @@ int main(int argc, char * argv[])
         pthread_create(&cpu_thread, NULL, run, NULL );;
 
 
+#ifndef GRAPHICS_OFF
         glutInit(&argc, argv);
         glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH);
         glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-WINDOW_SIZE_X)/2,
@@ -1856,7 +1857,6 @@ int main(int argc, char * argv[])
             glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
 
         glEnable(GL_TEXTURE_2D);
-#ifndef GRAPHICS_OFF
        glutMainLoop();
 #endif
         pthread_join(cpu_thread, NULL);

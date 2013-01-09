@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +46,7 @@ void rom::loadROM(int   FD)
     rom::trainer  = rom::flag0 & 0x04;//0 = no trainer present, 1 = 512 byte trainer at 7000-71FFh
     rom::battery_backed = rom::flag0 & 0x02; //SRAM at 6000-7FFFh battery backed.  0= no, 1 = yes
     rom::mirroring = rom::flag0 & 0x01;// Mirroring.  0 = horizontal, 1 = vertical.
-    rom::file += 16; //where the data starts??? FOR NOW?
+    rom::file += 16; //where the data starts
     
 }
 
@@ -70,10 +71,24 @@ void rom::setupRam()
             exit(1);
         }
 
+
+
+
+        PPU->chr_rom[0] = (uint8_t*) malloc(0x1000);
+        PPU->chr_rom[1] = (uint8_t*) malloc(0x1000);
+
+
         if( rom::chrrom == 1)
         {
-            memcpy(PPU->vram , rom::file + (0x4000 * rom::prgrom) , 0x2000);
+            memcpy(PPU->chr_rom[0] , rom::file + (0x4000 * rom::prgrom) , 0x1000);
+            memcpy(PPU->chr_rom[1] , rom::file + (0x4000 * rom::prgrom)+ 0x1000 , 0x1000);
+        }  
+        else if (rom::chrrom != 0)
+        {
+            printf( " INVALID CHRROM amount using no mapper!\n\n");
+            exit(1);
         }
+
     }
     else if ( rom::mapper_number == 1)
     {
@@ -81,18 +96,19 @@ void rom::setupRam()
         if ( mmc == NULL)
         {
             printf("Dynamic cast RAM -> mmc1 Failed in rom.cpp\n\n");
-            exit(1);
+            assert(false);
         }
         if ( rom::prgrom > 16)
         {
             printf("BAD ASSUMPTION OF NUMBER OF PRGROM BANKS POOSIBLE IN MMC1\n\n\n");
-            exit(1);
+            //see mmc1.h
+            assert(false);
         }
         
         for(int i =0; i<rom::prgrom; i++)
         {
             mmc->prg_rom_banks[i] = (uint8_t *) malloc(0x4000);
-            if( length < (16 + 0x4000 * i))
+            if( length < (16 + (0x4000 * (i+1))))
             {
                 goto file_not_long_enough;
             }
@@ -105,14 +121,16 @@ void rom::setupRam()
         {
             for(int i = 0; i< chrrom; i++)
             {
-                mmc->chr_rom_banks[i] = (uint8_t *) malloc(0x2000);
-                if( length < (16 + (0x4000 * prgrom) +( 0x2000 * i)));
+                if( length < (16 + (0x4000 * (prgrom)) +( 0x2000 * (i+1))));
                 {
                     goto file_not_long_enough;
                 }
+                mmc->chr_rom_banks[i] = (uint8_t *) malloc(0x2000);
                 memcpy(mmc->chr_rom_banks[i] , rom::file + (0x4000 * prgrom) + (0x2000 * i), 0x2000);
             }
-            memcpy(PPU->vram, mmc->chr_rom_banks[0] , 0x2000); //copy first bank by default
+            //memcpy(PPU->vram, mmc->chr_rom_banks[0] , 0x2000); //copy first bank by default
+            PPU->chr_rom[0] = mmc->chr_rom_banks[0];
+            PPU->chr_rom[1] = mmc->chr_rom_banks[0] + 0x1000;
         } else
         {
             //chrRAM ......
@@ -137,9 +155,18 @@ void rom::setupRam()
     free(rom::file);
     close(FD);
     return;
+
 file_not_long_enough:
+    printf("prgrom = %d\n", rom::prgrom);
+    printf("chrrom = %d\n", rom::chrrom);
+    printf("mapper_number = %d\n", rom::mapper_number);
+    printf("prgram = %d\n", rom::ram_banks);
+    printf("mirroring = %d\n", rom::mirroring);
+    printf("rom::ram_banks = %d\n", rom::ram_banks);
     printf("ERROR : .nes header is wrong or file is corrupted\n from rom.cpp\n\n");
-    free(rom::file);
+    printf("Header says there is more data then exists in the file: \n");
+    printf(" File length is : %ld\n", length);
+    free(rom::file-16);
     close(FD);
     exit(1);
 }

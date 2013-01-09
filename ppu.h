@@ -104,7 +104,15 @@ struct ppu
     // each nametable is 960 bytes
     //th bg is 30 X 32 tiles or 256 X240 pixels
     //each nametable has a paired attribute table
-    uint8_t vram[0x3fff]; //$0000 - $0FFF sprite tiles
+    uint8_t * chr_rom[2]; // pionters to char_ram 
+                          //$0000 - $1000 in chr_ram[0]
+                          //$1000 - $2000 in chr_ram[1]
+
+    uint8_t nametable_rom[0x1000]; //$2000 - $3000
+
+    uint8_t palettes[0x20];
+
+                          //$0000 - $0FFF sprite tiles
                           //$1000 - $1FFF Background tiles
                           //$2000 - $2FFF Name & attribute tables
                           //$3000 - $3FFF Palettes

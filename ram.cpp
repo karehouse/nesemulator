@@ -83,7 +83,7 @@ uint8_t ram::readHelp(uint16_t memloc)
     }
     else if (memloc >= 0xc000)
     {
-        if ( ROM->prgrom == 2)
+        if ( ROM->prgrom >= 2)
         {
             return cart_rom[1][memloc - 0xC000];
 
