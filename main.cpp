@@ -15,11 +15,11 @@
 
 int cycles = 0;
 int DMA_WAIT = 0;
-
+unsigned int texture;
 cpu CPU;
 ram * RAM ;
-rom * ROM = new rom() ;
-ppu * PPU  = new ppu();
+rom * ROM;
+ppu * PPU;
 void push(uint8_t value)
 {
     //STACK is $0100 - $01FF
@@ -1704,11 +1704,16 @@ void * run(void* ptr){
         int error = step(RAM->read(CPU.pc));
         //one cpu cycles is three ppu cycles
         if(error)
+        {
+            printf( "Error = %d\n", error);
+            exit(0);
             return (void*)1;
+        }
         for ( int i = 0; i < 3*cycles; i++)
         {
             PPU->step();
         }
+        
 
 
 #ifdef DEBUG_INSTR_TEST
@@ -1767,10 +1772,6 @@ void DisplayFunc()
     glMatrixMode (GL_MODELVIEW);
 
     glClear(GL_COLOR_BUFFER_BIT);
-
-    //printf("color = %X\n", PPU->rgb_framebuffer[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, WINDOW_SIZE_X, WINDOW_SIZE_Y, 0,  GL_RGB,GL_UNSIGNED_BYTE, PPU->rgb_framebuffer);
     glBegin(GL_QUADS);
         glTexCoord2f(0.0, 0.0); glVertex2f(0.0, 0.0);
@@ -1779,13 +1780,10 @@ void DisplayFunc()
         glTexCoord2f(1.0, 0.0); glVertex2f(1.0, 0.0);
     glEnd();
 
-
     glFlush();
 }
 void timerFunc(int a)
 {
-
-
 
     glutPostRedisplay();
     glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
@@ -1793,6 +1791,8 @@ void timerFunc(int a)
 
 int main(int argc, char * argv[])
 {
+    ROM = new rom() ;
+     PPU  = new ppu();
 
     if (argc >= 2)
     {
@@ -1838,25 +1838,29 @@ int main(int argc, char * argv[])
         CPU.P = 0x34;
         pthread_t cpu_thread;
 
-        pthread_create(&cpu_thread, NULL, run, NULL );;
 
 
-#ifndef GRAPHICS_OFF
         glutInit(&argc, argv);
         glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH);
         glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-WINDOW_SIZE_X)/2,
                 (glutGet(GLUT_SCREEN_HEIGHT)-WINDOW_SIZE_Y)/2);
         glutInitWindowSize(WINDOW_SIZE_X, WINDOW_SIZE_Y);
-        glutCreateWindow("MyNes");
-        glutDisplayFunc(DisplayFunc);
+        glutCreateWindow("NesEmu");
+        glEnable(GL_TEXTURE_2D);
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         //glutReshapeFunc(ReshapeFunc);
         //glutMouseFunc(mouse);
         //glutMotionFunc(motion);
         //glutIdleFunc(DisplayFunc);
         glDisable(GL_DEPTH_TEST);
-            glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
+        glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
+        glutDisplayFunc(DisplayFunc);
 
-        glEnable(GL_TEXTURE_2D);
+        pthread_create(&cpu_thread, NULL, run, NULL );;
+#ifndef GRAPHICS_OFF
        glutMainLoop();
 #endif
         pthread_join(cpu_thread, NULL);

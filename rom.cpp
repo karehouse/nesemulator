@@ -125,15 +125,19 @@ void rom::setupRam()
                 {
                     goto file_not_long_enough;
                 }
-                mmc->chr_rom_banks[i] = (uint8_t *) malloc(0x2000);
-                memcpy(mmc->chr_rom_banks[i] , rom::file + (0x4000 * prgrom) + (0x2000 * i), 0x2000);
+                mmc->chr_rom_banks[2*i] = (uint8_t *) malloc(0x1000);
+                mmc->chr_rom_banks[(2*i) + 1] = (uint8_t *) malloc(0x1000);
+                memcpy(mmc->chr_rom_banks[2*i] , rom::file + (0x4000 * prgrom) + (0x1000 * (2*i)), 0x1000);
+                memcpy(mmc->chr_rom_banks[(2*i)+1] , rom::file + (0x4000 * prgrom) + ( 0x1000 * ((2*i) + 1 ) ), 0x1000);
             }
             //memcpy(PPU->vram, mmc->chr_rom_banks[0] , 0x2000); //copy first bank by default
             PPU->chr_rom[0] = mmc->chr_rom_banks[0];
-            PPU->chr_rom[1] = mmc->chr_rom_banks[0] + 0x1000;
+            PPU->chr_rom[1] = mmc->chr_rom_banks[1];
         } else
         {
             //chrRAM ......
+            PPU->chr_rom[0] = (uint8_t*) malloc(0x1000);
+            PPU->chr_rom[1] = (uint8_t*) malloc(0x1000);
         }
 
     }

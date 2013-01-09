@@ -11,8 +11,6 @@ uint8_t mmc1::read(uint16_t memloc)
     
     return readHelp(memloc);
 
-
-    return 0;
 }
 
 void mmc1::writeReg(unsigned int value, uint16_t memloc)
@@ -22,7 +20,6 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
         //register 3
         regs[3] = value;
         prg_bank = value & 0xF;
-        printf("writing to reg 3 value = %X\n\n", prg_bank);
 
         wram_disable = (value & 0x10) >> 4;
         //0 - enabled 1 - disabled
@@ -39,12 +36,12 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
             if (! prg_rom_switch_area) //switch high bank
             {
                 cart_rom[1] = prg_rom_banks[prg_bank];
-                cart_rom[0] = prg_rom_banks[0];
+    //            cart_rom[0] = prg_rom_banks[0];
             }
             else
             {
                 cart_rom[0] = prg_rom_banks[prg_bank];
-                cart_rom[1] = prg_rom_banks[ROM->prgrom-1];
+      //          cart_rom[1] = prg_rom_banks[ROM->prgrom-1];
             }
         }
         
@@ -65,9 +62,10 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
         else
         {
 
-            if ( chr_rom_switching)
-            {
+            if ( chr_rom_switch_size)
+            { // size is 4k
                 //memcpy(PPU->vram+0x1000, chr_rom_banks[value], 0x1000); 
+                PPU->chr_rom[1] = chr_rom_banks[value];
 
             }
         }
@@ -76,7 +74,8 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
     else if (memloc >= 0xA000 )
     {
         // This Register represents CHR register 0
-        regs[1] = value;
+        value &= 0x1F;
+        regs[1] = value ;
         
         if( ROM->chrrom == 0)
         {
@@ -84,15 +83,20 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
         } else 
         {
 
-            if ( chr_rom_switching)
+            if ( chr_rom_switch_size)
             {
-            //    memcpy(PPU->vram, chr_rom_banks[value], 0x1000);
+            //size is 4k
+            //sets vram starting from $0000
+                PPU->chr_rom[0] = chr_rom_banks[value];
             } else
             {
-                printf("chr_rom_banks[1] = %p\n", chr_rom_banks[1]); 
-                exit(0);
-              //  memcpy(PPU->vram, chr_rom_banks[value&0xE], 0x1000);
-                //memcpy(PPU->vram+0x1000, chr_rom_banks[(value&0xE) + 1], 0x1000);
+                //size is 8k
+
+                value &= 0x1E;// ignore LSB
+                PPU->chr_rom[0] = chr_rom_banks[value];
+                PPU->chr_rom[1] = chr_rom_banks[value+1];
+
+
             }
         }
 
@@ -103,7 +107,6 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
 
         regs[0] = value;
         //value &= 0x1F;
-        printf("    REG 0x8000 = %5X\n", value);
 
         mirroring = value & 0x3;
         //  00 - 1sca  01 - 1scb
@@ -118,7 +121,7 @@ void mmc1::writeReg(unsigned int value, uint16_t memloc)
         prg_rom_switch_size = (value & 0x8) >> 3;
         //0 - 32k 1 - 16k
 
-        chr_rom_switching = (value & 0x10) >> 4;
+        chr_rom_switch_size = (value & 0x10) >> 4;
         //0 - 8K   1 - 4K
 
     }
@@ -154,16 +157,15 @@ void mmc1::store(uint8_t value, uint16_t memloc)
 
         if( buffer.write_num == 5)
         {
-            printf("WRITE IS OCCURINGG\n\n\n");
             writeReg(buffer.value, memloc);
             buffer.write_num = 0;
             buffer.value = 0;
         }
         return;
-    }
-            
+   }
 
-    storeHelp(value, memloc);
+   else
+       storeHelp(value, memloc);
 
 
 }

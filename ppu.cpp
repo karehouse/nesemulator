@@ -791,7 +791,7 @@ void ppu::convertFramebuffer()
     color_palette[64] = color_palette[readVram(universal_bg_color)];
     //printf("unicolor = %X, bg = %X\n", color_palette[64], readVram(universal_bg_color));
     //convert from nes color space to rgb
-       //: pthread_mutex_lock(&framebuffer_mutex);
+        //pthread_mutex_lock(&framebuffer_mutex);
     for ( unsigned int i = 0 ; i < resolution ;i++ )
     {
         uint32_t color = color_palette[nes_framebuffer[i]];
@@ -801,7 +801,7 @@ void ppu::convertFramebuffer()
         rgb_framebuffer[(3*i)+1] = ((color & 0xFF00) >> 8) & 0xFF;
         rgb_framebuffer[(3*i)+2] = ((color & 0xFF));
     }
-       // pthread_mutex_unlock(&framebuffer_mutex);
+        //pthread_mutex_unlock(&framebuffer_mutex);
 }
 
 
