@@ -1790,44 +1790,89 @@ void timerFunc(int a)
     glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
 }
 
+void keyboardUpFunc(unsigned char key, int x, int y)
+{
+    if ( key == 'z')
+    { //set to B
+
+        player1.setState(B,false);
+    }
+     else if ( key == 'x')
+     { //set to A
+        player1.setState(A,false);
+
+     } else if (key == 13) //enter
+     {
+        player1.setState(START,false);
+     } else if ( key == 'c')
+     {
+        player1.setState(SELECT,false);
+    }
+
+}
+
 void keyboardFunc(unsigned char key, int x, int y)
 {
     if ( key == 'z')
     { //set to B
 
-        player1.setState(B);
+        player1.setState(B,true);
     }
      else if ( key == 'x')
      { //set to A
-        player1.setState(A);
+        player1.setState(A,true);
 
-     } else if (key == '\n') //enter?
+     } else if (key == 13) //enter
      {
-        player1.setState(START);
-
-
-     }
+        player1.setState(START,true);
+     } else if ( key == 'c')
+     {
+        player1.setState(SELECT,true);
+    }
 
 }
 
-void specialFunc(int key, int x, int y)
+
+void specialUpFunc(int key, int x, int y)
 {
     if ( key == GLUT_KEY_UP)
     {
-        player1.setState(UP);
+        player1.setState(UP,false);
 
     } else if (key == GLUT_KEY_DOWN)
     {
-        player1.setState(DOWN);
+        player1.setState(DOWN,false);
 
     } else if ( key == GLUT_KEY_LEFT)
     {
-        player1.setState(LEFT);
+        player1.setState(LEFT,false);
 
     }
     else if (key == GLUT_KEY_RIGHT)
     {
-        player1.setState(RIGHT);
+        player1.setState(RIGHT,false);
+
+    }
+
+}
+void specialFunc(int key, int x, int y)
+{
+    if ( key == GLUT_KEY_UP)
+    {
+        player1.setState(UP,true);
+
+    } else if (key == GLUT_KEY_DOWN)
+    {
+        player1.setState(DOWN,true);
+
+    } else if ( key == GLUT_KEY_LEFT)
+    {
+        player1.setState(LEFT,true);
+
+    }
+    else if (key == GLUT_KEY_RIGHT)
+    {
+        player1.setState(RIGHT,true);
 
     }
 
@@ -1900,7 +1945,9 @@ int main(int argc, char * argv[])
         //glutMotionFunc(motion);
         //glutIdleFunc(DisplayFunc);
         glutKeyboardFunc(keyboardFunc);
+        glutKeyboardUpFunc(keyboardUpFunc);
         glutSpecialFunc(specialFunc);
+        glutSpecialUpFunc(specialUpFunc);
         glDisable(GL_DEPTH_TEST);
         glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
         glutDisplayFunc(DisplayFunc);

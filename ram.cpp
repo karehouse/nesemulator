@@ -11,7 +11,7 @@ bool ram::preRamStore(uint8_t value, uint16_t memloc)
     switch (memloc)
     {
         case 0x4016://joystick
-            player1.saveState();
+            player1.saveState((bool)value&0x1);
             return true;
             
         case 0x4014 :
@@ -53,7 +53,9 @@ bool ram::preRamRead(uint16_t memloc, uint8_t * return_value)
     switch (memloc)
     {
         case 0x4016: //joystick 1
+
             *return_value = player1.readState();
+            //printf("key = %d\n", *return_value);
             return true;
         case 0x4017: //joystick 2
             *return_value = 0;

@@ -1,27 +1,41 @@
 #include "controller.h"
-
+#include <stdlib.h>
 
 uint8_t controller::readState()
 {
+    if(!canRead)
+    {
+        return 0x0;
+    }
 
-    uint8_t return_value = 0x0;
-
-    return_value |= 0x2;
-    return_value |= saved_state & 1;
-    saved_state >> 1;
+    unsigned int return_value;
+    return_value = keyStates[currentState];
+    currentState++;
+    if(currentState == 8) {
+        currentState = 0;
+    }
     return return_value;
 
 }
 
-void controller::setState( int key)
+void controller::setState( int key, bool value)
 {
-
-    state |= 1 << key;
+    buf[key] = value;
 }
 
-void controller::saveState()
+void controller::saveState(bool value)
 {
-    saved_state = state;
-    state = 0;
+    if ( value)
+    {
+        for(int i =0; i<8;i++)
+        {
+            keyStates[i] = buf[i] ;
+            
+        } 
+        canRead = false;
+    }
+        else {
+            canRead = true;
+        }
 }
 
