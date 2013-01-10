@@ -76,6 +76,11 @@ void rom::setupRam()
 
         PPU->chr_rom[0] = (uint8_t*) malloc(0x1000);
         PPU->chr_rom[1] = (uint8_t*) malloc(0x1000);
+        if( PPU->chr_rom[1] == NULL || PPU->chr_rom[0] == NULL )
+        {
+            printf("chr_rom[x] is null\n");
+            exit(0);
+        }
 
 
         if( rom::chrrom == 1)

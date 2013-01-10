@@ -16,13 +16,16 @@ struct ppu
 //        bg_palette_addy = 0x3F01;
  //       sprite_palette_addy = 0x3F11;
   //      resolution = 260*240;
-        addr_write_count = 0;
+        write_latch = true;
+        fine_horiz_offset = 0;
+
         writeCtrl(0x00);
 
 
 
 
     }
+    unsigned int fine_horiz_offset;
 
 // 8 ppu memory mapped registers
 

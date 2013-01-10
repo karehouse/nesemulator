@@ -246,6 +246,7 @@ void ppu::writeScroll (uint8_t word)
     {
         vram_latch &= 0x7FE0;
         vram_latch |= (word & 0xF8) >> 3;
+        fine_horiz_offset = 0x7;
 
     } else {
         vram_latch &= 0x0C1F;
@@ -255,23 +256,6 @@ void ppu::writeScroll (uint8_t word)
 }
 void ppu::writeAddr(uint8_t word)
 {
-/*
-    //CPU mem address 0x2007
-    assert(addr_write_count == 0 || addr_write_count ==1);
-   if ( addr_write_count == 0 ) //write lower byte
-   {
-        ADDR = ADDR & 0x7F00;
-        ADDR = ADDR | word;
-        addr_write_count = 1;
-    }
-    else if ( addr_write_count == 1)
-    {
-        ADDR = ADDR & 0x00FF;
-        word = word & 0x3F; //only use lowest 6 bits b/c highest valid vram addr is 0x3fff
-        ADDR = ADDR | (uint16_t)word << 8 ;
-        addr_write_count = 0;
-    }
-    */
     if(write_latch)
     {
         vram_latch = vram_latch & 0x00FF;
@@ -358,6 +342,7 @@ uint8_t ppu::readStatus ()
     uint8_t old_STATUS = STATUS;
 
     write_latch = true;
+    vram_latch = 0x0;
     setVblank(false);
 
     
@@ -408,6 +393,10 @@ void ppu::writeDMA(uint8_t value)
 }
 
 
+    uint16_t name_tbl_addy = 0;
+    unsigned int nm_tbl_offset = 0;
+    uint16_t attr_tbl_addy =0;
+    unsigned int attr_tbl_offset = 0;
 
 void ppu::renderBG()
 {
@@ -421,12 +410,9 @@ void ppu::renderBG()
     // i.e. A 4 byte square in the nametable
     //
     //
-    uint16_t name_tbl_addy = base_nametable_address;
-    unsigned int nm_tbl_offset = 0;
-    uint16_t attr_tbl_addy = base_attr_tbl_addy;
-    unsigned int attr_tbl_offset = 0;
-    for (int sl = 0; sl < 240; sl++)
-    {
+//    for (int sl = 0; sl < 240; sl++)
+  //  {
+  int sl = scanline;
         if ( (sl) % 8 == 0) 
         {
             nm_tbl_offset = ( ((sl)/8) * 32);
@@ -492,8 +478,8 @@ void ppu::renderBG()
                 nes_framebuffer[ (sl * 256) + (deltaX * 8) + j] = colors[j];
             }
         }
-    }
-    convertFramebuffer();
+    ///}
+    //convertFramebuffer();
 
 }
 
@@ -504,8 +490,7 @@ void ppu::getColors(uint8_t * colors , uint16_t pattern_table_addy, unsigned int
 
         uint8_t low_byte = readVram(pattern_table_addy);
         uint8_t high_byte = readVram(pattern_table_addy + 8);
-        //uint16_t palette_addy = sprite ? sprite_palette_addy: bg_palette_addy;
-        uint16_t palette_addy = 0x3f00;
+        uint16_t palette_addy = sprite ? sprite_palette_addy: bg_palette_addy;
 
         for( int j = 0 ; j < 8 ; j ++)
         {
@@ -533,14 +518,13 @@ void ppu::renderSprites()
     int num_sprites = 0;
     int  sprite_height = sprite_size ? 16 : 8; //I assume this will not change in the middle of rendering
     int sprite_offset = 0;
+
     while ( num_sprites < 8 ) 
     {
 
-        uint8_t y_coord = sprite_ram[ 4 * sprite_offset] + 1; //sprite data is delayed by one scanline
-        if ( y_coord <= (scanline - sprite_height) && y_coord >= scanline)
+        uint8_t y_coord = sprite_ram[ 4 * sprite_offset]+1 ; //sprite data is delayed by one scanline
+        if ( scanline <= (y_coord + sprite_height-1) && y_coord <= scanline)
         {
-            //y_coord is valid
-
             for ( int i = 0; i< 4 ; i++)
             {
                 curr_sprite_data[num_sprites][i] = sprite_ram[(4 * sprite_offset) + i];
@@ -549,6 +533,7 @@ void ppu::renderSprites()
 
             sprite_offset++;
             num_sprites++;
+            setSprite0Hit(true);
             if (sprite_offset == 64)
             {
                 break;
@@ -572,24 +557,25 @@ void ppu::renderSprites()
     //copied all applicable sprite data to curr_sprite_data
     //now get the proper colour and add it to the framebuffer with the bg pixels
     
-    uint8_t scanline_buf[256][2];// for each pixel on line:  0 is data 1 is priority
+    uint8_t scanline_buf[256][2] = { };// for each pixel on line:  0 is data 1 is priority
     unsigned int pattern_tbl_addy;
     for (int i =0; i < num_sprites; i++)
     {
         //RENDER SPRITESS!!
 
-        uint8_t y_pos = curr_sprite_data[i][0]; //top of sprite
-        uint8_t x_pos = curr_sprite_data[i][3]; //left of sprite
+        uint8_t y_coord = curr_sprite_data[i][0]+1; //top of sprite
+        uint8_t x_coord = curr_sprite_data[i][3]; //left of sprite
         uint8_t sprite_tile_num = curr_sprite_data[i][1];
         unsigned int palette = (curr_sprite_data[i][2] & (0x3));
-        bool behind_background = curr_sprite_data[i][2] & (0x20);
+        unsigned int  behind_background = (curr_sprite_data[i][2] & (0x20))>>5;
         bool hflip = curr_sprite_data[i][2] & (0x40);
         bool vflip = curr_sprite_data[i][2] & (0x80);
 
         //scanline is our current y coordinate
-        int y_coord; // between 0 and sprite_height-1  y coord within sprite
-        y_coord = scanline - y_pos;
-        assert(y_coord >= 0 && y_coord <=sprite_height-1 );
+        int y_pos; // between 0 and sprite_height-1  y coord within sprite
+        y_pos = (scanline - y_coord) ;
+        assert(y_pos >= 0 );
+        assert( y_pos <=sprite_height-1 );
 
         //
         // Calculate PAttern Table Addresss
@@ -598,17 +584,15 @@ void ppu::renderSprites()
         if ( sprite_height == 8)
         {
 
-            pattern_tbl_addy = (sprite_pattern | ((uint16_t) sprite_tile_num << 4))  | y_coord;    
+            pattern_tbl_addy = (sprite_pattern | ((uint16_t) sprite_tile_num << 4))  | y_pos;    
                 
         
         } else //height is 16
         {
             pattern_tbl_addy = ( sprite_tile_num & 0x01) << 7; 
-            pattern_tbl_addy |= (sprite_tile_num & 0xFE); 
+            pattern_tbl_addy |= (sprite_tile_num & 0xFE)<< 4; 
 
-            if ( y_coord >= 8) { //bottom half
-                pattern_tbl_addy += 0x10;
-            }
+            pattern_tbl_addy |= y_pos;
 
         }
 
@@ -619,34 +603,34 @@ void ppu::renderSprites()
         getColors(colors, pattern_tbl_addy, palette, true); 
         for ( int j = 0; j < 8; j++)
         {
-            if ( scanline_buf[x_pos + j][0] == 0 ) //use first pixel found only
+            if(x_coord + j > 256 ) break; //at the end of the screen
+            if ( scanline_buf[x_coord + j][0] == 0 ) //use first pixel found only
             {
-                scanline_buf[x_pos + j][0] = colors[j];
-                scanline_buf[x_pos + j][1] = behind_background;
+                scanline_buf[x_coord + j][0] = colors[j];
+                scanline_buf[x_coord + j][1] = behind_background;
             }
         }
     } 
 
     //Done adding sprite colors to  scanline_buf .... now to combine it with the background in nes_framebuffer....
-
-    int base = scanline * 256;
+    int base = (scanline) * 256;
     assert(base <= 256 * 240);
     //color 64 means blank!
     for ( int i =0 ; i < 256; i++ )
-    {
-        if ( scanline_buf[i][0] != 64 && !scanline_buf[i][1] ) 
-        {
-            //replace color
-            nes_framebuffer[base + i] = scanline_buf[i][0];
-        } else if ( scanline_buf[i][0] != 64 )
-        {
-            nes_framebuffer[base+i] = scanline_buf[i][0];
+    { 
+        if ( scanline_buf[i][0] != 64 && scanline_buf[i][0] != 0){
+            if ( scanline_buf[i][1] == 0 )  //sprite is in front of bg
+            {
+                nes_framebuffer[base + i] = scanline_buf[i][0];
+            } else if ( nes_framebuffer[base+i] == 64 ) //no color from background
+            {
+                nes_framebuffer[base+i] = scanline_buf[i][0];
+            }
         }
     }
 
     
 
-    
 }
 
 
@@ -686,6 +670,7 @@ void ppu::updateEndScanLine()
     else {
         ADDR += vram_address_inc;
     }
+    ADDR &= 0x3FFF;
 }
 void ppu::step()
 { 
@@ -714,14 +699,12 @@ void ppu::step()
             
                 if (show_background ) 
                 {
-            //        renderBG();
+                    renderBG();
 
-    //                printf("scanline = %d\n", scanline);
                 }
 
                 if (show_sprites) 
                 {
-                    setSprite0Hit(true);
                     renderSprites();
                 }
         }
@@ -729,7 +712,7 @@ void ppu::step()
         {
             if ( show_background)
             {
-            //    updateEndScanLine();
+                //updateEndScanLine();
             }
 
 
@@ -751,11 +734,11 @@ void ppu::step()
         if (cycle ==1)
         {
             //pvblank!
-//                PPU->convertFramebuffer();
+                PPU->convertFramebuffer();
             setVblank(true);
             if(ppu::generate_nmi)
             {
-                renderBG();
+                //renderBG();
 
                 CPU.request_nmi = true;
             }
