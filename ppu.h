@@ -8,7 +8,13 @@
 struct ppu 
 {
     ppu() {
+    name_tbl_addy = 0;
+    nm_tbl_offset = 0;
+    attr_tbl_addy =0;
+    attr_tbl_offset = 0;
         cycle = 0;
+        scanline = 0;
+        scrollUpdate();
         scanline = -1;
         //STATUS |= 0x80;
         frame_count = 0;
@@ -18,6 +24,9 @@ struct ppu
   //      resolution = 260*240;
         write_latch = true;
         fine_horiz_offset = 0;
+    coarse_horiz_offset = 0;
+    fine_vert_offset = 0;
+    coarse_vert_offset = 0;
 
         writeCtrl(0x00);
 
@@ -25,7 +34,16 @@ struct ppu
 
 
     }
+    void scrollUpdate();
+    void incrementAddresses(unsigned int deltaX);
+    unsigned int  name_tbl_addy ;
+    unsigned int nm_tbl_offset ;
+    unsigned int attr_tbl_addy ;
+    unsigned int attr_tbl_offset ;
     unsigned int fine_horiz_offset;
+    unsigned int coarse_horiz_offset;
+    unsigned int fine_vert_offset;
+    unsigned int coarse_vert_offset;
 
 // 8 ppu memory mapped registers
 

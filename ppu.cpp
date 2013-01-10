@@ -246,11 +246,15 @@ void ppu::writeScroll (uint8_t word)
     {
         vram_latch &= 0x7FE0;
         vram_latch |= (word & 0xF8) >> 3;
-        fine_horiz_offset = 0x7;
+        fine_horiz_offset = word & 0x7;
+        coarse_horiz_offset = (word & 0xF8) >> 3;
+
 
     } else {
         vram_latch &= 0x0C1F;
         vram_latch |= (( (uint16_t)word & 0xF8) << 2) | (((uint16_t)word & 0x07) << 12); 
+        coarse_vert_offset = (word & 0xF8) >> 3;
+        fine_vert_offset = word & 0x7;
     }
     write_latch = !write_latch;
 }
@@ -393,10 +397,6 @@ void ppu::writeDMA(uint8_t value)
 }
 
 
-    uint16_t name_tbl_addy = 0;
-    unsigned int nm_tbl_offset = 0;
-    uint16_t attr_tbl_addy =0;
-    unsigned int attr_tbl_offset = 0;
 
 void ppu::renderBG()
 {
@@ -410,33 +410,17 @@ void ppu::renderBG()
     // i.e. A 4 byte square in the nametable
     //
     //
-//    for (int sl = 0; sl < 240; sl++)
-  //  {
   int sl = scanline;
-        if ( (sl) % 8 == 0) 
-        {
-            nm_tbl_offset = ( ((sl)/8) * 32);
-        } 
 
 
-        if ( sl % 32 == 0)
-        {
-            //each entry in attr table is for 32x32 pixel square
-            // so change every 32 lines
-            attr_tbl_offset = ( (sl/32) * 8 );
-        }
-
-        name_tbl_addy = base_nametable_address + nm_tbl_offset;
-        attr_tbl_addy = base_attr_tbl_addy + attr_tbl_offset;
-
-            
+        //name_tbl_address = ADDR; 
         
         for (int deltaX = 0; deltaX < 32; deltaX++)
         {
             //32 boxes of 8x8 pixels
-            if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
-
-            unsigned int curr_nm = readVram(name_tbl_addy++);
+            //if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
+            unsigned int curr_nm = readVram(name_tbl_addy);
+            incrementAddresses(deltaX);
             unsigned int curr_attr = readVram(attr_tbl_addy);
 
             unsigned int attr_tbl_bits = 0x00;
@@ -654,37 +638,44 @@ void updateSprites()
 void updateTiles()
 {
 }
-
-void ppu::updateEndScanLine()
+void ppu::incrementAddresses(unsigned int deltaX)
 {
-    if ( show_background || show_sprites )
+    //CALLED AFTER EVERY TILE
+    if ( (name_tbl_addy & 0x1f) == 31)
     {
-        if ( ADDR & 0x7000 == 0x7000 )
+        name_tbl_addy&= ~0x1f; //switch nametables because we are at the last tile of our current one
+        name_tbl_addy ^=0x400;
+        attr_tbl_addy = 0x23c0 | (name_tbl_addy & 0xc00) | ((name_tbl_addy>>4) & 0x38) | ((name_tbl_addy>>2)&0x7)  ; 
+    } else{
+
+        name_tbl_addy++;
+        if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
+    }
+}
+void ppu::scrollUpdate()
+{
+    //CALLED AFTER EVERY SCANLINE
+
+
+        int sl = scanline;
+        if ( (sl) % 8 == 0) 
         {
-                ADDR ^= 0x7000;
-                if ( ADDR & 0x3E0 == 0x3A0 )
-                {
-                    ADDR ^= 0xBA0;
-
-                } else if (ADDR & 0x3E0 == 0x3E0 )
-                {
-                    ADDR ^= 0x3E0;
-                } else
-                {
-                    ADDR += 20;
-                }
+            nm_tbl_offset = ( ((sl)/8) * 32) ;
+        } 
 
 
-        } else {
-            ADDR +=0x1000;
+        if ( sl % 32 == 0)
+        {
+            //each entry in attr table is for 32x32 pixel square
+            // so change every 32 lines
+            attr_tbl_offset = ( (sl/32) * 8 );
         }
-        ADDR = (ADDR & 0x7BE0) | (vram_latch & 0x41f);
-    }
 
-    else {
-        ADDR += vram_address_inc;
-    }
-    ADDR &= 0x3FFF;
+        name_tbl_addy = base_nametable_address+ coarse_horiz_offset + nm_tbl_offset;
+
+        //attr_tbl_addy = base_attr_tbl_addy + attr_tbl_offset;
+        attr_tbl_addy = base_attr_tbl_addy + attr_tbl_offset  + (coarse_horiz_offset>>2);
+    
 }
 void ppu::step()
 { 
@@ -708,11 +699,12 @@ void ppu::step()
     } 
     else if (scanline >=0 && scanline <= 239 )
     {
-        if ( cycle ==255)
+        if ( cycle ==256)
         {
             
                 if (show_background ) 
                 {
+                scrollUpdate();
                     renderBG();
 
                 }
@@ -722,11 +714,10 @@ void ppu::step()
                     renderSprites();
                 }
         }
-        else if (cycle == 256)
+        else if (cycle == 257)
         {
-            if ( show_background)
+            if ( show_background || show_sprites)
             {
-                //updateEndScanLine();
             }
 
 
