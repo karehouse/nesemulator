@@ -568,14 +568,21 @@ void ppu::renderSprites()
         uint8_t sprite_tile_num = curr_sprite_data[i][1];
         unsigned int palette = (curr_sprite_data[i][2] & (0x3));
         unsigned int  behind_background = (curr_sprite_data[i][2] & (0x20))>>5;
-        bool hflip = curr_sprite_data[i][2] & (0x40);
-        bool vflip = curr_sprite_data[i][2] & (0x80);
+        unsigned int  hflip = (curr_sprite_data[i][2] & (0x40)) >> 6;
+        unsigned int vflip = (curr_sprite_data[i][2] & (0x80)) >> 7;
 
         //scanline is our current y coordinate
         int y_pos; // between 0 and sprite_height-1  y coord within sprite
         y_pos = (scanline - y_coord) ;
         assert(y_pos >= 0 );
         assert( y_pos <=sprite_height-1 );
+
+        if(vflip)
+        {
+            y_pos = sprite_height - y_pos;
+        }
+
+            
 
         //
         // Calculate PAttern Table Addresss
@@ -601,13 +608,20 @@ void ppu::renderSprites()
 
         uint8_t colors[8];
         getColors(colors, pattern_tbl_addy, palette, true); 
+        int offset = 0;
+        if ( hflip )  offset = 7;
+        int x_pos;
         for ( int j = 0; j < 8; j++)
         {
-            if(x_coord + j > 256 ) break; //at the end of the screen
-            if ( scanline_buf[x_coord + j][0] == 0 ) //use first pixel found only
+            x_pos = (offset - j);
+            if ( x_pos < 0 ) x_pos *=-1;
+            x_pos += x_coord;
+            
+            if(x_pos> 256 ) break; //at the end of the screen
+            if ( scanline_buf[x_pos][0] == 0 ) //use first pixel found only
             {
-                scanline_buf[x_coord + j][0] = colors[j];
-                scanline_buf[x_coord + j][1] = behind_background;
+                scanline_buf[x_pos][0] = colors[j];
+                scanline_buf[x_pos][1] = behind_background;
             }
         }
     } 
