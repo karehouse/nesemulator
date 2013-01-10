@@ -1,11 +1,11 @@
 CC = g++
 CFLAGS = -g  -Wall 
-O_FILES = ppu.o main.o  mmc1.o cpu.o rom.o ram.o
+O_FILES = ppu.o main.o  mmc1.o cpu.o rom.o ram.o controller.o
 
 
 all: $(O_FILES)
 	$(CC) $(CFLAGS) -lpthread -framework GLUT -framework OpenGL $(O_FILES) -o main
-	ctags -f tags ppu.cpp ppu.h ram.cpp ram.h  main.cpp rom.cpp rom.h  cpu.cpp cpu.h 2> /dev/null > /dev/null
+	ctags -f tags controller.cpp ppu.cpp ppu.h ram.cpp ram.h  main.cpp rom.cpp rom.h  cpu.cpp cpu.h 2> /dev/null > /dev/null
 
 ppu.o : ppu.cpp
 	$(CC) $(CFLAGS) -c ppu.cpp -o ppu.o
@@ -25,6 +25,8 @@ cpu.o: cpu.cpp
 ram.o : ram.cpp
 	$(CC) $(CFLAGS) -c ram.cpp -o ram.o
 
+controller.o : controller.cpp
+	$(CC) $(CFLAGS) -c controller.cpp -o controller.o
 
 clean:
 	rm -f *.o *.gch

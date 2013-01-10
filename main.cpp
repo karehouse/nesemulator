@@ -17,6 +17,7 @@ int cycles = 0;
 int DMA_WAIT = 0;
 unsigned int texture;
 cpu CPU;
+controller player1;
 ram * RAM ;
 rom * ROM;
 ppu * PPU;
@@ -1789,6 +1790,49 @@ void timerFunc(int a)
     glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
 }
 
+void keyboardFunc(unsigned char key, int x, int y)
+{
+    if ( key == 'z')
+    { //set to B
+
+        player1.setState(B);
+    }
+     else if ( key == 'x')
+     { //set to A
+        player1.setState(A);
+
+     } else if (key == '\n') //enter?
+     {
+        player1.setState(START);
+
+
+     }
+
+}
+
+void specialFunc(int key, int x, int y)
+{
+    if ( key == GLUT_KEY_UP)
+    {
+        player1.setState(UP);
+
+    } else if (key == GLUT_KEY_DOWN)
+    {
+        player1.setState(DOWN);
+
+    } else if ( key == GLUT_KEY_LEFT)
+    {
+        player1.setState(LEFT);
+
+    }
+    else if (key == GLUT_KEY_RIGHT)
+    {
+        player1.setState(RIGHT);
+
+    }
+
+}
+
 int main(int argc, char * argv[])
 {
     ROM = new rom() ;
@@ -1855,6 +1899,8 @@ int main(int argc, char * argv[])
         //glutMouseFunc(mouse);
         //glutMotionFunc(motion);
         //glutIdleFunc(DisplayFunc);
+        glutKeyboardFunc(keyboardFunc);
+        glutSpecialFunc(specialFunc);
         glDisable(GL_DEPTH_TEST);
         glutTimerFunc(TIMER_FUNC_FREQ,timerFunc,100);
         glutDisplayFunc(DisplayFunc);

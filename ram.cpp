@@ -10,6 +10,10 @@ bool ram::preRamStore(uint8_t value, uint16_t memloc)
 {
     switch (memloc)
     {
+        case 0x4016://joystick
+            player1.saveState();
+            return true;
+            
         case 0x4014 :
             PPU->writeDMA(value);
             return true;
@@ -48,6 +52,12 @@ bool ram::preRamRead(uint16_t memloc, uint8_t * return_value)
 {
     switch (memloc)
     {
+        case 0x4016: //joystick 1
+            *return_value = player1.readState();
+            return true;
+        case 0x4017: //joystick 2
+            *return_value = 0;
+            return true;
         case 0x2005:
             *return_value = PPU->SCROLL; //read scroll
             return true;
