@@ -897,7 +897,7 @@ void irq()
     high  = RAM->read(0xFFFF);
     low = RAM->read(0xFFFE);
 
-    CPU.pc = (uint16_t)high<<8 + low;
+    CPU.pc = ((uint16_t)high<<8) + low;
 }
 
 int step( uint8_t opcode ) 

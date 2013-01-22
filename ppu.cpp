@@ -583,7 +583,15 @@ void ppu::renderSprites()
             pattern_tbl_addy = ( sprite_tile_num & 0x01) << 7; 
             pattern_tbl_addy |= (sprite_tile_num & 0xFE)<< 4; 
 
-            pattern_tbl_addy |= y_pos;
+            if( y_pos > 8 ) {
+                pattern_tbl_addy |=0x10;
+                pattern_tbl_addy |= (y_pos-8);
+            }
+            else
+            {
+                pattern_tbl_addy |= y_pos;
+            }
+                    
 
         }
 

@@ -4,8 +4,7 @@ O_FILES = ppu.o main.o  mmc1.o cpu.o rom.o ram.o controller.o
 
 
 all: $(O_FILES)
-	$(CC) $(CFLAGS) -lpthread -framework GLUT -framework OpenGL $(O_FILES) -o main
-	ctags -f tags controller.cpp ppu.cpp ppu.h ram.cpp ram.h  main.cpp rom.cpp rom.h  cpu.cpp cpu.h 2> /dev/null > /dev/null
+	$(CC) $(CFLAGS) -lpthread -lGL -lglut $(O_FILES) -o main
 
 ppu.o : ppu.cpp
 	$(CC) $(CFLAGS) -c ppu.cpp -o ppu.o
@@ -32,6 +31,3 @@ clean:
 	rm -f *.o *.gch
 
 
-
-test:
-	./main nestest.nes run > mytest.log
