@@ -1,5 +1,6 @@
 #include "ppu.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include "main.h"
 #include "assert.h"
 #include <pthread.h>

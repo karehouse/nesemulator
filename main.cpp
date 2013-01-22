@@ -1,5 +1,13 @@
-#include <stdio.h>
+
+#ifdef __APPLE__
 #include <GLUT/glut.h>
+#endif
+#ifdef __linux__
+#include <GL/freeglut.h>
+#endif
+
+
+#include <stdio.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <stdlib.h>
