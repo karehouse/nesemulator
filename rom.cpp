@@ -14,10 +14,7 @@ void rom::read_whole_rom(int FD)
     length = lseek(FD,0,SEEK_CUR);
     lseek(FD, 0, SEEK_SET);
     rom::file = (uint8_t * ) malloc(length);
-    if(rom::file == NULL)
-    {
-        printf("INVALID MEMORY ALLOC");
-    }
+    assert(rom::file);
     read(FD, rom::file, length);
 }
 
@@ -57,13 +54,16 @@ void rom::setupRam()
        if ( rom::prgrom == 1 )
        {
             RAM->cart_rom[0] = (uint8_t*) malloc(0x4000);
+            assert(RAM->cart_rom[0]);
             memcpy(RAM->cart_rom[0], rom::file, 0x4000);
             RAM->cart_rom[1] = RAM->cart_rom[0];
             printf("file: %x , rom: %x \n\n", rom::file[0], RAM->cart_rom[0][0]);
         } else if (rom::prgrom == 2)
         {
             RAM->cart_rom[0] = (uint8_t*) malloc(0x4000);
+            assert(RAM->cart_rom[0]);
             RAM->cart_rom[1] = (uint8_t*) malloc(0x4000);
+            assert(RAM->cart_rom[1]);
             memcpy(RAM->cart_rom[0], rom::file, 0x4000);
             memcpy(RAM->cart_rom[1], (rom::file+0x4000), 0x4000);
         } else {
@@ -75,12 +75,9 @@ void rom::setupRam()
 
 
         PPU->chr_rom[0] = (uint8_t*) malloc(0x1000);
+        assert(PPU->chr_rom[0]);
         PPU->chr_rom[1] = (uint8_t*) malloc(0x1000);
-        if( PPU->chr_rom[1] == NULL || PPU->chr_rom[0] == NULL )
-        {
-            printf("chr_rom[x] is null\n");
-            exit(0);
-        }
+        assert(PPU->chr_rom[1]);
 
 
         if( rom::chrrom == 1)
@@ -113,6 +110,7 @@ void rom::setupRam()
         for(int i =0; i<rom::prgrom; i++)
         {
             mmc->prg_rom_banks[i] = (uint8_t *) malloc(0x4000);
+            assert(mmc->prg_rom_banks[i]);
             if( length < (16 + (0x4000 * (i+1))))
             {
                 goto file_not_long_enough;
@@ -131,7 +129,9 @@ void rom::setupRam()
                     goto file_not_long_enough;
                 }
                 mmc->chr_rom_banks[2*i] = (uint8_t *) malloc(0x1000);
+                assert(mmc->chr_rom_banks[2*i]);
                 mmc->chr_rom_banks[(2*i) + 1] = (uint8_t *) malloc(0x1000);
+                assert(mmc->chr_rom_banks[(2*i) + 1]);
                 memcpy(mmc->chr_rom_banks[2*i] , rom::file + (0x4000 * prgrom) + (0x1000 * (2*i)), 0x1000);
                 memcpy(mmc->chr_rom_banks[(2*i)+1] , rom::file + (0x4000 * prgrom) + ( 0x1000 * ((2*i) + 1 ) ), 0x1000);
             }
@@ -142,7 +142,10 @@ void rom::setupRam()
         {
             //chrRAM ......
             PPU->chr_rom[0] = (uint8_t*) malloc(0x1000);
+            assert(PPU->chr_rom[0]);
             PPU->chr_rom[1] = (uint8_t*) malloc(0x1000);
+            assert(PPU->chr_rom[1]);
+
         }
 
     }

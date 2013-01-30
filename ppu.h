@@ -13,8 +13,8 @@ struct ppu
     attr_tbl_addy =0;
     attr_tbl_offset = 0;
         cycle = 0;
-        scanline = 0;
-        scrollUpdate();
+    //    scanline = 0;
+      //  scrollUpdate();
         scanline = -1;
         //STATUS |= 0x80;
         frame_count = 0;

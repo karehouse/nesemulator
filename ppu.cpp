@@ -151,6 +151,7 @@ void ppu::setSpriteOverflow(bool status)
 
 uint16_t translateAddress(uint16_t address)
 {
+        address = address & 0x3FFF;
     //nametable mirroring
     if ( address > 0x2000 && address < 0x3000)
     {
@@ -222,7 +223,7 @@ void ppu::writeVram(uint8_t value, uint16_t address)
             palettes[address & 0x1F] = value;
         } else
         {
-            printf( " invalid PPU mem VRAM address read address = %X\n\n", address);
+            printf( " invalid PPU mem VRAM address write address = %X\n\n", address);
             exit(0);
         }
 
@@ -414,13 +415,13 @@ void ppu::renderBG()
   int sl = scanline;
 
 
-        //name_tbl_address = ADDR; 
         
         for (int deltaX = 0; deltaX < 32; deltaX++)
         {
             //32 boxes of 8x8 pixels
             //if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
-            unsigned int curr_nm = readVram(name_tbl_addy);
+            //unsigned int curr_nm = readVram(name_tbl_addy);
+            unsigned int curr_nm = readVram(ADDR);
             incrementAddresses(deltaX);
             unsigned int curr_attr = readVram(attr_tbl_addy);
 
@@ -463,8 +464,6 @@ void ppu::renderBG()
                 nes_framebuffer[ (sl * 256) + (deltaX * 8) + j] = colors[j];
             }
         }
-    ///}
-    //convertFramebuffer();
 
 }
 
@@ -491,7 +490,7 @@ void ppu::getColors(uint8_t * colors , uint16_t pattern_table_addy, unsigned int
 
             } else {
                 colors[j] = readVram(address) ;
-                assert(colors[j] < 64);
+                assert(colors[j] <= 64);
             }
         }
 }
@@ -650,6 +649,7 @@ void updateTiles()
 void ppu::incrementAddresses(unsigned int deltaX)
 {
     //CALLED AFTER EVERY TILE
+    /*
     if ( (name_tbl_addy & 0x1f) == 31)
     {
         name_tbl_addy&= ~0x1f; //switch nametables because we are at the last tile of our current one
@@ -660,10 +660,24 @@ void ppu::incrementAddresses(unsigned int deltaX)
         name_tbl_addy++;
         if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
     }
+    */
+    //CALLED AFTER EVERY TILE
+    //for horizontal scrolling
+    if ( (ADDR& 0x1f) == 31)
+    {
+        ADDR&= ~0x1f; //switch nametables because we are at the last tile of our current one
+        ADDR^=0x400;
+        attr_tbl_addy= 0x23c0 | (ADDR& 0xc00) | ((ADDR>>4) & 0x38) | ((ADDR>>2)&0x7)  ; 
+    } else{
+
+        ADDR++;
+        if ( deltaX != 0 && deltaX % 4 == 0) attr_tbl_addy ++;
+    }
 }
 void ppu::scrollUpdate()
 {
     //CALLED AFTER EVERY SCANLINE
+    //for horizontal scrolling
 
 
         int sl = scanline;
@@ -680,12 +694,26 @@ void ppu::scrollUpdate()
             attr_tbl_offset = ( (sl/32) * 8 );
         }
 
-        name_tbl_addy = base_nametable_address+ coarse_horiz_offset + nm_tbl_offset;
+        //name_tbl_addy = base_nametable_address+ coarse_horiz_offset + nm_tbl_offset;
+        ADDR= base_nametable_address+ coarse_horiz_offset + nm_tbl_offset;
 
         //attr_tbl_addy = base_attr_tbl_addy + attr_tbl_offset;
         attr_tbl_addy = base_attr_tbl_addy + attr_tbl_offset  + (coarse_horiz_offset>>2);
     
 }
+
+
+void vertScroll()
+{
+   //coarse_vert_offset is scanline within tile 
+   //fine_vert_offset is dist from top in tiles
+   // tile is 8x8
+   
+   //ADDR
+   }
+
+
+
 void ppu::step()
 { 
 
@@ -713,7 +741,6 @@ void ppu::step()
             
                 if (show_background ) 
                 {
-                scrollUpdate();
                     renderBG();
 
                 }
@@ -727,6 +754,8 @@ void ppu::step()
         {
             if ( show_background || show_sprites)
             {
+                scrollUpdate();
+               // vertScroll();
             }
 
 
